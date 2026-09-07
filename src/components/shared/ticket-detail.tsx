@@ -218,15 +218,19 @@ export function TicketDetail({ mode }: Readonly<TicketDetailProps>) {
             ticket.status !== "CLOSED" ? "grid-cols-1 lg:grid-cols-2" : ""
           }`}
         >
-          <TicketMessages ticket={ticket} mode={mode} />
+          <div className={ticket.status !== "CLOSED" ? "min-h-0 max-h-[calc(100vh-12rem)]" : ""}>
+            <TicketMessages ticket={ticket} mode={mode} />
+          </div>
 
           {ticket.status !== "CLOSED" && (
-            <TicketReplyForm
-              ticketId={ticketId}
-              isAdmin={isAdmin}
-              messages={messages}
-              addReplyMutation={addReplyMutation}
-            />
+            <div className="min-h-0 max-h-[calc(100vh-12rem)]">
+              <TicketReplyForm
+                ticketId={ticketId}
+                isAdmin={isAdmin}
+                messages={messages}
+                addReplyMutation={addReplyMutation}
+              />
+            </div>
           )}
         </div>
 

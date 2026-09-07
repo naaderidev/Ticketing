@@ -6,6 +6,7 @@ export interface UserData {
   nationalCode?: string;
   email?: string;
   birthday?: string;
+  role: "USER" | "ADMIN";
 }
 
 export interface DepartmentWithCount {

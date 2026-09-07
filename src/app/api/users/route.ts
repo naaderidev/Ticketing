@@ -1,10 +1,25 @@
 import { NextResponse } from "next/server";
-import { getUsers, createUser } from "@/lib/user-service";
+import { getUsers, createUser, updateUserRole } from "@/lib/user-service";
 import { errors } from "@/lib/strings";
 import { createUserSchema } from "@/lib/validations";
+import { getAuthUser } from "@/lib/auth";
 
 export async function GET() {
   try {
+    const authUser = await getAuthUser();
+    if (!authUser) {
+      return NextResponse.json(
+        { error: "احراز هویت الزامی است" },
+        { status: 401 }
+      );
+    }
+    if (authUser.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "دسترسی غیرمجاز" },
+        { status: 403 }
+      );
+    }
+
     const users = await getUsers();
     return NextResponse.json(users);
   } catch (error) {
@@ -24,7 +39,8 @@ export async function POST(request: Request) {
       const firstError = result.error.issues[0]?.message || "داده‌های ورودی معتبر نیستند";
       return NextResponse.json({ error: firstError }, { status: 400 });
     }
-    const user = await createUser(result.data);
+    const { confirmPassword: _, ...userData } = result.data;
+    const user = await createUser(userData);
     return NextResponse.json(user, { status: 201 });
   } catch (error) {
     console.error("Error creating user:", error);
@@ -36,5 +52,48 @@ export async function POST(request: Request) {
         ? 409
         : 500;
     return NextResponse.json({ error: message }, { status });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const authUser = await getAuthUser();
+    if (!authUser) {
+      return NextResponse.json(
+        { error: "احراز هویت الزامی است" },
+        { status: 401 }
+      );
+    }
+    if (authUser.role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "دسترسی غیرمجاز" },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { userId, role } = body;
+
+    if (!userId || !role) {
+      return NextResponse.json(
+        { error: "userId و role الزامی است" },
+        { status: 400 }
+      );
+    }
+
+    if (role !== "USER" && role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "نقش معتبر نیست" },
+        { status: 400 }
+      );
+    }
+
+    const updatedUser = await updateUserRole(Number(userId), role);
+    return NextResponse.json(updatedUser);
+  } catch (error) {
+    console.error("Error updating user role:", error);
+    const message =
+      error instanceof Error ? error.message : "خطا در بروزرسانی نقش کاربر";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

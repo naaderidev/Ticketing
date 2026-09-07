@@ -12,20 +12,26 @@ import {
 
 describe("Validation Schemas", () => {
   describe("loginSchema", () => {
-    it("should validate valid mobile number", () => {
-      const validData = { mobile: "09121234567" };
+    it("should validate valid mobile number and password", () => {
+      const validData = { mobile: "09121234567", password: "password123" };
       const result = loginSchema.safeParse(validData);
       expect(result.success).toBe(true);
     });
 
     it("should reject invalid mobile number", () => {
-      const invalidData = { mobile: "1234567" };
+      const invalidData = { mobile: "1234567", password: "password123" };
       const result = loginSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
     });
 
     it("should reject empty mobile", () => {
-      const invalidData = { mobile: "" };
+      const invalidData = { mobile: "", password: "password123" };
+      const result = loginSchema.safeParse(invalidData);
+      expect(result.success).toBe(false);
+    });
+
+    it("should reject empty password", () => {
+      const invalidData = { mobile: "09121234567", password: "" };
       const result = loginSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
     });
@@ -38,6 +44,8 @@ describe("Validation Schemas", () => {
         lastName: "احمدی",
         nationalCode: "1234567890",
         mobile: "09121234567",
+        password: "password123",
+        confirmPassword: "password123",
         email: "test@example.com",
         birthday: "1400/01/01",
       };
@@ -51,6 +59,8 @@ describe("Validation Schemas", () => {
         lastName: "احمدی",
         nationalCode: "123",
         mobile: "09121234567",
+        password: "password123",
+        confirmPassword: "password123",
         email: "test@example.com",
         birthday: "1400/01/01",
       };
@@ -64,6 +74,8 @@ describe("Validation Schemas", () => {
         lastName: "احمدی",
         nationalCode: "1234567890",
         mobile: "1234567",
+        password: "password123",
+        confirmPassword: "password123",
         email: "test@example.com",
         birthday: "1400/01/01",
       };
@@ -77,6 +89,8 @@ describe("Validation Schemas", () => {
         lastName: "احمدی",
         nationalCode: "1234567890",
         mobile: "09121234567",
+        password: "password123",
+        confirmPassword: "password123",
       };
       const result = createUserSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
@@ -88,6 +102,8 @@ describe("Validation Schemas", () => {
         lastName: "احمدی",
         nationalCode: "1234567890",
         mobile: "09121234567",
+        password: "password123",
+        confirmPassword: "password123",
         email: "test@example.com",
       };
       const result = createUserSchema.safeParse(invalidData);
@@ -100,6 +116,38 @@ describe("Validation Schemas", () => {
         lastName: "Ahmadi",
         nationalCode: "1234567890",
         mobile: "09121234567",
+        password: "password123",
+        confirmPassword: "password123",
+        email: "test@example.com",
+        birthday: "1400/01/01",
+      };
+      const result = createUserSchema.safeParse(invalidData);
+      expect(result.success).toBe(false);
+    });
+
+    it("should reject short password", () => {
+      const invalidData = {
+        firstName: "علی",
+        lastName: "احمدی",
+        nationalCode: "1234567890",
+        mobile: "09121234567",
+        password: "12345",
+        confirmPassword: "12345",
+        email: "test@example.com",
+        birthday: "1400/01/01",
+      };
+      const result = createUserSchema.safeParse(invalidData);
+      expect(result.success).toBe(false);
+    });
+
+    it("should reject mismatched passwords", () => {
+      const invalidData = {
+        firstName: "علی",
+        lastName: "احمدی",
+        nationalCode: "1234567890",
+        mobile: "09121234567",
+        password: "password123",
+        confirmPassword: "password456",
         email: "test@example.com",
         birthday: "1400/01/01",
       };

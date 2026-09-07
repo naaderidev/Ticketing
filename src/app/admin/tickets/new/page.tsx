@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,11 +34,13 @@ export default function AdminNewTicketPage() {
 function AdminNewTicketContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const userId = searchParams.get("userId");
+  const initialUserId = searchParams.get("userId");
 
   const { data: users = [] } = useUsers();
   const { data: departments = [] } = useDepartments();
   const createTicket = useCreateTicket();
+
+  const [selectedUserId, setSelectedUserId] = useState<string>(initialUserId || "");
 
   const { register, handleSubmit, watch, setValue, formState: { errors: formErrors } } = useForm<CreateTicketInput>({
     resolver: zodResolver(createTicketSchema),
@@ -50,9 +52,13 @@ function AdminNewTicketContent() {
     selectedDepartmentId ? Number.parseInt(selectedDepartmentId) : 0,
   );
 
-  const user = users.find((u) => u.id === Number.parseInt(userId || "0"));
+  const selectedUser = users.find((u) => u.id.toString() === selectedUserId);
 
   const onSubmit = async (data: CreateTicketInput) => {
+    if (!selectedUserId) {
+      toast.error("لطفاً کاربر را انتخاب کنید");
+      return;
+    }
     createTicket.mutate(
       {
         userName: "مدیر",
@@ -60,7 +66,7 @@ function AdminNewTicketContent() {
         message: data.message.trim(),
         departmentId: data.departmentId,
         subDepartmentId: data.subDepartmentId,
-        userId: Number.parseInt(userId || "0"),
+        userId: Number.parseInt(selectedUserId),
       },
       {
         onSuccess: (ticket) => {
@@ -83,28 +89,37 @@ function AdminNewTicketContent() {
             <p className="text-muted-foreground">{descriptions.TICKET_CREATE_DESCRIPTION}</p>
           </div>
 
-          {user && (
-            <Card className="border-sky-200 bg-sky-50 dark:border-sky-800 dark:bg-primary">
-              <CardContent className="p-4 bg-primary rounded-md">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white">
-                    <UserPlus className="h-5 w-5 text-pimary" />
-                  </div>
-                  <div className="text-white">
-                    <p className="font-medium">
-                      {user.firstName} {user.lastName}
-                    </p>
-                    <p
-                      className="text-sm font-medium"
-                      dir="ltr"
-                    >
-                      {user.mobile}
-                    </p>
+          <Card>
+            <CardContent className="p-4">
+              <div className="space-y-2">
+                <Label>{labels.USER_MOBILE} *</Label>
+                <Select
+                  value={selectedUserId}
+                  onValueChange={setSelectedUserId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="انتخاب کاربر" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.map((u) => (
+                      <SelectItem key={u.id} value={u.id.toString()}>
+                        {u.firstName} {u.lastName} ({u.mobile})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedUser && (
+                <div className="mt-3 flex items-center gap-3 rounded-md bg-primary/10 p-3">
+                  <UserPlus className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-medium">{selectedUser.firstName} {selectedUser.lastName}</p>
+                    <p className="text-sm text-muted-foreground" dir="ltr">{selectedUser.mobile}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

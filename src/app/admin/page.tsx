@@ -12,11 +12,13 @@ import {
   MessageSquare,
   ThumbsUp,
 } from "lucide-react";
-import { labels, titles } from "@/lib/strings";
+import { labels, titles, descriptions } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
 import { useTickets, useUsers, useNotifications } from "@/hooks";
+import { useUser } from "@/contexts/user-context";
 
 export default function AdminPage() {
+  const { user } = useUser();
   const { data: users = [], isLoading: usersLoading } = useUsers();
   const { data: ticketsData, isLoading: ticketsLoading } = useTickets({ limit: 1000 });
   const { data: notifications } = useNotifications();
@@ -124,9 +126,11 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{titles.ADMIN_DASHBOARD}</h1>
-        <p className="text-muted-foreground">نمای کلی سیستم پشتیبانی</p>
+      <div className="flex flex-col items-start gap-2">
+        <h1 className="text-2xl font-bold">
+          {descriptions.USER_WELCOME} {user?.firstName} {user?.lastName}
+        </h1>
+        <p className="text-muted-foreground" dir="ltr">{user?.mobile}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

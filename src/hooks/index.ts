@@ -9,6 +9,6 @@ export { useFaqs, useCreateFaq, useUpdateFaq, useDeleteFaq, useReorderFaqs } fro
 
 export { useMessages, useCreateMessage, useUpdateMessage, useDeleteMessage } from "./messages";
 
-export { useUsers, useCreateUser } from "./users";
+export { useUsers, useCreateUser, useUpdateUserRole } from "./users";
 
 export { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from "./notifications";

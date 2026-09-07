@@ -22,7 +22,7 @@ A Persian (RTL) ticketing and support system built with Next.js. It provides a c
 - [Prisma](https://www.prisma.io/) ORM + SQLite
 - [TanStack React Query](https://tanstack.com/query/latest) for server state management
 - [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/) for form validation
-- [Jalali Date](https://github.com/nickm8/jalali-moment) for Persian date formatting
+- [React Multi Date Picker](https://github.com/majidhassan/react-multi-date-picker) for Persian date handling
 
 ## Getting Started
 

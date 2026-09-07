@@ -30,14 +30,14 @@ export const TicketMessages = React.memo(function TicketMessages({
   }, [ticket.replies]);
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col h-full">
       <CardHeader>
         <CardTitle className="text-base">
           {labels.TICKET_CONVERSATIONS}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 flex-1 flex flex-col">
-        <ScrollArea className="flex-1 h-100" ref={scrollRef}>
+      <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+        <ScrollArea className="flex-1" ref={scrollRef}>
           <div className="space-y-4 p-4">
             {/* Initial Message */}
             <div className="flex flex-row gap-3">

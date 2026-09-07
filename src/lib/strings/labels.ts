@@ -58,8 +58,11 @@ export const labels = {
   USER_LAST_NAME: "نام خانوادگی",
   USER_NATIONAL_CODE: "کد ملی",
   USER_MOBILE: "موبایل",
+  USER_PASSWORD: "رمز عبور",
+  CONFIRM_PASSWORD: "تکرار رمز عبور",
   USER_EMAIL: "ایمیل",
   USER_BIRTHDAY: "تاریخ تولد",
+  USER_ROLE: "نقش",
   USER_ACTIONS: "عملیات",
   USER_NAME: "نام شما *",
 

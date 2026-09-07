@@ -31,14 +31,16 @@ export default function UserLoginPage() {
       const res = await fetch("/api/users/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile: data.mobile }),
+        body: JSON.stringify(data),
       })
 
       if (res.ok) {
-        const user = await res.json()
-        setUser(user)
+        const userData = await res.json()
+        setUser(userData)
         toast.success("ورود با موفقیت انجام شد")
-        router.push("/user")
+        const params = new URLSearchParams(window.location.search)
+        const redirect = params.get("redirect") || (userData.role === "ADMIN" ? "/admin" : "/user")
+        router.push(redirect)
       } else {
         const result = await res.json()
         if (res.status === 404) {
@@ -86,6 +88,20 @@ export default function UserLoginPage() {
               />
               {formErrors.mobile && (
                 <p className="text-destructive text-sm">{formErrors.mobile.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">{labels.USER_PASSWORD}</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="رمز عبور"
+                {...register("password")}
+                dir="ltr"
+              />
+              {formErrors.password && (
+                <p className="text-destructive text-sm">{formErrors.password.message}</p>
               )}
             </div>
 

@@ -6,6 +6,9 @@ export const loginSchema = z.object({
     .string()
     .min(1, "شماره موبایل الزامی است")
     .regex(/^09\d{9}$/, "شماره موبایل معتبر نیست (مثال: 09121234567)"),
+  password: z
+    .string()
+    .min(1, "رمز عبور الزامی است"),
 });
 
 export const createUserSchema = z.object({
@@ -27,6 +30,12 @@ export const createUserSchema = z.object({
     .string()
     .min(1, "شماره موبایل الزامی است")
     .regex(/^09\d{9}$/, "شماره موبایل معتبر نیست (مثال: 09193574545)"),
+  password: z
+    .string()
+    .min(6, "رمز عبور باید حداقل 6 کاراکتر باشد"),
+  confirmPassword: z
+    .string()
+    .min(1, "تکرار رمز عبور الزامی است"),
   email: z
     .string()
     .min(1, "ایمیل الزامی است")
@@ -34,6 +43,9 @@ export const createUserSchema = z.object({
   birthday: z
     .string()
     .min(1, "تاریخ تولد الزامی است"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "رمز عبور و تکرار آن یکسان نیستند",
+  path: ["confirmPassword"],
 });
 
 // ===== Ticket Schemas =====

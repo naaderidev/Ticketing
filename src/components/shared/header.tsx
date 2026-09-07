@@ -8,6 +8,7 @@ import { MobileSidebar } from "./mobile-sidebar";
 import { LogOut, LayoutDashboard } from "lucide-react";
 import Image from "next/image";
 import { buttons } from "@/lib/strings";
+import { useUser } from "@/contexts/user-context";
 
 interface HeaderProps {
   showBack?: boolean;
@@ -25,6 +26,7 @@ export function Header({
   const pathname = usePathname();
   const isLoginPage = pathname === "/user/login" || pathname === "/user/login/";
   const dashboardHref = panelType === "admin" ? "/admin" : "/user";
+  const { logout } = useUser();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
@@ -57,12 +59,10 @@ export function Header({
             <NotificationBell recipientType={recipientType} />
           )}
           {showBack && (
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                <LogOut className="ml-1 h-4 w-4" />
-                خروج
-              </Button>
-            </Link>
+            <Button variant="ghost" size="sm" onClick={logout}>
+              <LogOut className="ml-1 h-4 w-4" />
+              خروج
+            </Button>
           )}
         </div>
       </div>

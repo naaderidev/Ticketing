@@ -30,9 +30,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { labels, buttons, errors, descriptions } from "@/lib/strings";
+import { toPersianDigits } from "@/lib/format";
 import { UseFormRegister, UseFormHandleSubmit, FieldErrors } from "react-hook-form";
 import { FaqInput } from "@/lib/validations";
 import { Department, SubDepartment } from "@/types/ticket";
+
+const FAQ_QUESTION_MAX = 500;
+const FAQ_ANSWER_MAX = 5000;
 
 interface FAQFormProps {
   isCreateDialogOpen: boolean;
@@ -46,6 +50,7 @@ interface FAQFormProps {
   errorsCreate: FieldErrors<FaqInput>;
   registerEdit: UseFormRegister<FaqInput>;
   handleSubmitEdit: UseFormHandleSubmit<FaqInput>;
+  watchEdit: (name: string) => string;
   errorsEdit: FieldErrors<FaqInput>;
   isCreatePending: boolean;
   isCreateError: boolean;
@@ -75,6 +80,7 @@ export function FAQForm({
   errorsCreate,
   registerEdit,
   handleSubmitEdit,
+  watchEdit,
   errorsEdit,
   isCreatePending,
   isCreateError,
@@ -149,7 +155,14 @@ export function FAQForm({
 
             <div className="space-y-2">
               <Label>{labels.FAQ_QUESTION}</Label>
-              <Input placeholder={labels.FAQ_QUESTION} {...registerCreate("question")} />
+              <Input
+                placeholder={labels.FAQ_QUESTION}
+                {...registerCreate("question")}
+                maxLength={FAQ_QUESTION_MAX}
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{toPersianDigits((watchCreate("question") || "").length)} / {toPersianDigits(FAQ_QUESTION_MAX)}</span>
+              </div>
               {errorsCreate.question && (
                 <p className="text-destructive text-sm">{errorsCreate.question.message}</p>
               )}
@@ -161,7 +174,11 @@ export function FAQForm({
                 placeholder={labels.FAQ_ANSWER}
                 className="min-h-[150px]"
                 {...registerCreate("answer")}
+                maxLength={FAQ_ANSWER_MAX}
               />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{toPersianDigits((watchCreate("answer") || "").length)} / {toPersianDigits(FAQ_ANSWER_MAX)}</span>
+              </div>
               {errorsCreate.answer && (
                 <p className="text-destructive text-sm">{errorsCreate.answer.message}</p>
               )}
@@ -192,7 +209,14 @@ export function FAQForm({
           <form onSubmit={handleSubmitEdit(onEditSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label>{labels.FAQ_QUESTION}</Label>
-              <Input placeholder={labels.FAQ_QUESTION} {...registerEdit("question")} />
+              <Input
+                placeholder={labels.FAQ_QUESTION}
+                {...registerEdit("question")}
+                maxLength={FAQ_QUESTION_MAX}
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{toPersianDigits((watchEdit("question") || "").length)} / {toPersianDigits(FAQ_QUESTION_MAX)}</span>
+              </div>
               {errorsEdit.question && (
                 <p className="text-destructive text-sm">{errorsEdit.question.message}</p>
               )}
@@ -204,7 +228,11 @@ export function FAQForm({
                 placeholder={labels.FAQ_ANSWER}
                 className="min-h-[150px]"
                 {...registerEdit("answer")}
+                maxLength={FAQ_ANSWER_MAX}
               />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{toPersianDigits((watchEdit("answer") || "").length)} / {toPersianDigits(FAQ_ANSWER_MAX)}</span>
+              </div>
               {errorsEdit.answer && (
                 <p className="text-destructive text-sm">{errorsEdit.answer.message}</p>
               )}

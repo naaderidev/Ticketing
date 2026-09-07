@@ -14,7 +14,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { createUserSchema, CreateUserInput } from "@/lib/validations"
 import { toast } from "sonner"
 import dynamic from "next/dynamic"
-import { useUser } from "@/contexts/user-context"
 
 const DatePicker = dynamic(() => import("react-multi-date-picker"), { ssr: false })
 
@@ -26,7 +25,6 @@ function SignupForm() {
   const searchParams = useSearchParams()
   const prefillMobile = searchParams.get("mobile") || ""
   const [isLoading, setIsLoading] = useState(false)
-  const { setUser } = useUser()
 
   const { register, handleSubmit, control, formState: { errors: formErrors, isValid } } = useForm<CreateUserInput>({
     resolver: zodResolver(createUserSchema),
@@ -47,10 +45,8 @@ function SignupForm() {
       })
 
       if (res.ok) {
-        const user = await res.json()
-        setUser(user)
         toast.success("ثبت نام با موفقیت انجام شد")
-        router.push("/user")
+        router.push("/user/login")
       } else {
         const result = await res.json()
         toast.error(result.error || errors.CREATE_USER)
@@ -133,42 +129,68 @@ function SignupForm() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>{labels.USER_EMAIL}</Label>
+                <Label>{labels.USER_PASSWORD}</Label>
                 <Input
-                  placeholder={labels.USER_EMAIL}
-                  {...register("email")}
+                  type="password"
+                  placeholder={labels.USER_PASSWORD}
+                  {...register("password")}
                   dir="ltr"
                 />
-                {formErrors.email && (
-                  <p className="text-destructive text-sm">{formErrors.email.message}</p>
+                {formErrors.password && (
+                  <p className="text-destructive text-sm">{formErrors.password.message}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label>{labels.USER_BIRTHDAY}</Label>
-                <Controller
-                  control={control}
-                  name="birthday"
-                  render={({ field }) => (
-                    <DatePicker
-                      containerClassName="w-full"
-                      style={{ width: "100%" }}
-                      inputClass="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={field.value || ""}
-                      onChange={(date) => {
-                        field.onChange(date && !Array.isArray(date) ? date.format("YYYY/MM/DD") : "");
-                      }}
-                      calendar={persian}
-                      locale={persian_fa}
-                      format="YYYY/MM/DD"
-                      calendarPosition="bottom-right"
-                      placeholder="انتخاب تاریخ تولد"
-                    />
-                  )}
+                <Label>{labels.CONFIRM_PASSWORD}</Label>
+                <Input
+                  type="password"
+                  placeholder={labels.CONFIRM_PASSWORD}
+                  {...register("confirmPassword")}
+                  dir="ltr"
                 />
-                {formErrors.birthday && (
-                  <p className="text-destructive text-sm">{formErrors.birthday.message}</p>
+                {formErrors.confirmPassword && (
+                  <p className="text-destructive text-sm">{formErrors.confirmPassword.message}</p>
                 )}
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{labels.USER_EMAIL}</Label>
+              <Input
+                placeholder={labels.USER_EMAIL}
+                {...register("email")}
+                dir="ltr"
+              />
+              {formErrors.email && (
+                <p className="text-destructive text-sm">{formErrors.email.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label>{labels.USER_BIRTHDAY}</Label>
+              <Controller
+                control={control}
+                name="birthday"
+                render={({ field }) => (
+                  <DatePicker
+                    containerClassName="w-full"
+                    style={{ width: "100%" }}
+                    inputClass="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={field.value || ""}
+                    onChange={(date) => {
+                      field.onChange(date && !Array.isArray(date) ? date.format("YYYY/MM/DD") : "");
+                    }}
+                    calendar={persian}
+                    locale={persian_fa}
+                    format="YYYY/MM/DD"
+                    calendarPosition="bottom-right"
+                    placeholder="انتخاب تاریخ تولد"
+                  />
+                )}
+              />
+              {formErrors.birthday && (
+                <p className="text-destructive text-sm">{formErrors.birthday.message}</p>
+              )}
             </div>
 
             <Button

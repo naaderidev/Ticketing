@@ -33,9 +33,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { MessageSquare } from "lucide-react";
 import { labels, buttons, errors, descriptions } from "@/lib/strings";
+import { toPersianDigits } from "@/lib/format";
 import { UseFormRegister, UseFormHandleSubmit, FieldErrors, Controller, Control } from "react-hook-form";
 import { PredefinedMessageInput } from "@/lib/validations";
 import { SubDepartment } from "@/types/ticket";
+
+const MESSAGE_TITLE_MAX = 100;
+const MESSAGE_CONTENT_MAX = 5000;
 
 interface MessageFormProps {
   isCreateDialogOpen: boolean;
@@ -45,10 +49,12 @@ interface MessageFormProps {
   subDepartments: SubDepartment[];
   registerCreate: UseFormRegister<PredefinedMessageInput>;
   handleSubmitCreate: UseFormHandleSubmit<PredefinedMessageInput>;
+  watchCreate: (name: string) => string;
   controlCreate: Control<PredefinedMessageInput>;
   errorsCreate: FieldErrors<PredefinedMessageInput>;
   registerEdit: UseFormRegister<PredefinedMessageInput>;
   handleSubmitEdit: UseFormHandleSubmit<PredefinedMessageInput>;
+  watchEdit: (name: string) => string;
   controlEdit: Control<PredefinedMessageInput>;
   errorsEdit: FieldErrors<PredefinedMessageInput>;
   isCreatePending: boolean;
@@ -72,10 +78,12 @@ export function MessageForm({
   subDepartments,
   registerCreate,
   handleSubmitCreate,
+  watchCreate,
   controlCreate,
   errorsCreate,
   registerEdit,
   handleSubmitEdit,
+  watchEdit,
   controlEdit,
   errorsEdit,
   isCreatePending,
@@ -131,7 +139,11 @@ export function MessageForm({
                 <Input
                   placeholder={labels.MESSAGE_TITLE}
                   {...registerCreate("title")}
+                  maxLength={MESSAGE_TITLE_MAX}
                 />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{toPersianDigits((watchCreate("title") || "").length)} / {toPersianDigits(MESSAGE_TITLE_MAX)}</span>
+                </div>
                 {errorsCreate.title && (
                   <p className="text-destructive text-sm">{errorsCreate.title.message}</p>
                 )}
@@ -187,7 +199,11 @@ export function MessageForm({
                 placeholder={labels.MESSAGE_CONTENT}
                 className="min-h-[200px]"
                 {...registerCreate("content")}
+                maxLength={MESSAGE_CONTENT_MAX}
               />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{toPersianDigits((watchCreate("content") || "").length)} / {toPersianDigits(MESSAGE_CONTENT_MAX)}</span>
+              </div>
               {errorsCreate.content && (
                 <p className="text-destructive text-sm">{errorsCreate.content.message}</p>
               )}
@@ -224,7 +240,11 @@ export function MessageForm({
                 <Input
                   placeholder={labels.MESSAGE_TITLE}
                   {...registerEdit("title")}
+                  maxLength={MESSAGE_TITLE_MAX}
                 />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{toPersianDigits((watchEdit("title") || "").length)} / {toPersianDigits(MESSAGE_TITLE_MAX)}</span>
+                </div>
                 {errorsEdit.title && (
                   <p className="text-destructive text-sm">{errorsEdit.title.message}</p>
                 )}
@@ -277,7 +297,11 @@ export function MessageForm({
                 placeholder={labels.MESSAGE_CONTENT}
                 className="min-h-[200px]"
                 {...registerEdit("content")}
+                maxLength={MESSAGE_CONTENT_MAX}
               />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{toPersianDigits((watchEdit("content") || "").length)} / {toPersianDigits(MESSAGE_CONTENT_MAX)}</span>
+              </div>
               {errorsEdit.content && (
                 <p className="text-destructive text-sm">{errorsEdit.content.message}</p>
               )}

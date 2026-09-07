@@ -53,6 +53,7 @@ export function FAQManager() {
   const {
     register: registerEdit,
     handleSubmit: handleSubmitEdit,
+    watch: watchEdit,
     reset: resetEdit,
     formState: { errors: errorsEdit },
   } = useForm<FaqInput>({
@@ -279,6 +280,7 @@ export function FAQManager() {
         errorsCreate={errorsCreate}
         registerEdit={registerEdit}
         handleSubmitEdit={handleSubmitEdit}
+        watchEdit={watchEdit}
         errorsEdit={errorsEdit}
         isCreatePending={createFaqMutation.isPending}
         isCreateError={createFaqMutation.isError}

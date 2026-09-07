@@ -25,6 +25,7 @@ export function MessageManager() {
   const {
     register: registerCreate,
     handleSubmit: handleSubmitCreate,
+    watch: watchCreate,
     control: controlCreate,
     reset: resetCreate,
     formState: { errors: errorsCreate },
@@ -35,6 +36,7 @@ export function MessageManager() {
   const {
     register: registerEdit,
     handleSubmit: handleSubmitEdit,
+    watch: watchEdit,
     control: controlEdit,
     reset: resetEdit,
     formState: { errors: errorsEdit },
@@ -176,10 +178,12 @@ export function MessageManager() {
         subDepartments={allSubDepartments}
         registerCreate={registerCreate}
         handleSubmitCreate={handleSubmitCreate}
+        watchCreate={watchCreate}
         controlCreate={controlCreate}
         errorsCreate={errorsCreate}
         registerEdit={registerEdit}
         handleSubmitEdit={handleSubmitEdit}
+        watchEdit={watchEdit}
         controlEdit={controlEdit}
         errorsEdit={errorsEdit}
         isCreatePending={createMessageMutation.isPending}

@@ -130,11 +130,11 @@ export const TicketReplyForm = React.memo(function TicketReplyForm({
   }, []);
 
   return (
-    <Card className="flex flex-col">
+    <Card className="flex flex-col h-full">
       <CardHeader>
         <CardTitle className="text-base">{labels.TICKET_REPLY_FORM}</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 flex flex-col">
+      <CardContent className="flex-1 flex flex-col min-h-0">
         <div className="space-y-4 flex-1 flex flex-col">
           <div className="space-y-2 flex-1 flex flex-col">
             <div className="flex items-center justify-between">

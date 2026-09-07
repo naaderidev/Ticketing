@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { randomBytes } from 'crypto'
+import { getAuthUser } from '@/lib/auth'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = [
@@ -24,6 +25,14 @@ const ALLOWED_TYPES = [
 
 export async function POST(request: Request) {
   try {
+    const authUser = await getAuthUser()
+    if (!authUser) {
+      return NextResponse.json(
+        { error: 'احراز هویت الزامی است' },
+        { status: 401 }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File | null
 

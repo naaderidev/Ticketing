@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ import {
 import { Users, Send, Plus } from "lucide-react";
 import { labels, titles, buttons, errors } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
-import { useUsers, useCreateUser } from "@/hooks";
+import { useUsers, useCreateUser, useUpdateUserRole } from "@/hooks";
 import { useForm, Controller } from "react-hook-form";
 import dynamic from "next/dynamic";
 
@@ -41,12 +41,19 @@ import { toast } from "sonner";
 export default function AdminUsersPage() {
   const { data: users = [], isLoading } = useUsers();
   const createUser = useCreateUser();
+  const updateUserRole = useUpdateUserRole();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  const { register, handleSubmit, reset, control, formState: { errors: formErrors, isValid } } = useForm<CreateUserInput>({
+  const { register, handleSubmit, reset, control, watch, formState: { errors: formErrors, isValid } } = useForm<CreateUserInput>({
     resolver: zodResolver(createUserSchema),
     mode: "onChange",
   });
+
+  useEffect(() => {
+    if (isCreateDialogOpen) {
+      reset();
+    }
+  }, [isCreateDialogOpen, reset]);
 
   const onSubmit = async (data: CreateUserInput) => {
     createUser.mutate(data, {
@@ -98,6 +105,7 @@ export default function AdminUsersPage() {
                         <TableHead className="text-center">{labels.USER_MOBILE}</TableHead>
                         <TableHead className="text-center">{labels.USER_EMAIL}</TableHead>
                         <TableHead className="text-center">{labels.USER_BIRTHDAY}</TableHead>
+                        <TableHead className="text-center">{labels.USER_ROLE}</TableHead>
                         <TableHead className="text-center">{labels.USER_ACTIONS}</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -115,14 +123,42 @@ export default function AdminUsersPage() {
                           </TableCell>
                           <TableCell className="text-center" dir="ltr">{user.mobile}</TableCell>
                           <TableCell className="text-center">{user.email || "-"}</TableCell>
-                          <TableCell className="text-center">{user.birthday || "-"}</TableCell>
+                          <TableCell className="text-center">{user.birthday ? toPersianDigits(user.birthday) : "-"}</TableCell>
                           <TableCell className="text-center">
-                            <Link href={`/admin/tickets/new?userId=${user.id}`}>
-                              <Button size="sm">
-                                <Send className="ml-1 h-4 w-4" />
-                                {buttons.SEND_TICKET}
+                            <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
+                              {user.role === "ADMIN" ? "مدیر" : "کاربر"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Link href={`/admin/tickets/new?userId=${user.id}`}>
+                                <Button size="sm">
+                                  <Send className="ml-1 h-4 w-4" />
+                                  {buttons.SEND_TICKET}
+                                </Button>
+                              </Link>
+                              <Button
+                                size="sm"
+                                variant={user.role === "ADMIN" ? "outline" : "secondary"}
+                                onClick={() => {
+                                  const newRole = user.role === "ADMIN" ? "USER" : "ADMIN";
+                                  updateUserRole.mutate(
+                                    { userId: user.id, role: newRole },
+                                    {
+                                      onSuccess: () => {
+                                        toast.success(`نقش کاربر به ${newRole === "ADMIN" ? "مدیر" : "کاربر"} تغییر کرد`);
+                                      },
+                                      onError: (err: Error) => {
+                                        toast.error(err.message || "خطا در تغییر نقش");
+                                      },
+                                    }
+                                  );
+                                }}
+                                disabled={updateUserRole.isPending}
+                              >
+                                {user.role === "ADMIN" ? "تبدیل به کاربر" : "تبدیل به مدیر"}
                               </Button>
-                            </Link>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -227,6 +263,33 @@ export default function AdminUsersPage() {
                 />
                 {formErrors.birthday && (
                   <p className="text-destructive text-sm">{formErrors.birthday.message}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{labels.USER_PASSWORD}</Label>
+                <Input
+                  type="password"
+                  placeholder={labels.USER_PASSWORD}
+                  {...register("password")}
+                  dir="ltr"
+                />
+                {formErrors.password && (
+                  <p className="text-destructive text-sm">{formErrors.password.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>{labels.CONFIRM_PASSWORD}</Label>
+                <Input
+                  type="password"
+                  placeholder={labels.CONFIRM_PASSWORD}
+                  {...register("confirmPassword")}
+                  dir="ltr"
+                />
+                {formErrors.confirmPassword && (
+                  <p className="text-destructive text-sm">{formErrors.confirmPassword.message}</p>
                 )}
               </div>
             </div>

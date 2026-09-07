@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
@@ -9,7 +10,9 @@ const fakeUsers = [
     nationalCode: "0251235695",
     mobile: "09193578585",
     email: "naderi@gmail.com",
-    birthday: "1370/01/11"
+    birthday: "1370/01/11",
+    role: "ADMIN" as const,
+    password: "admin123"
   },
   {
     firstName: "علی",
@@ -17,7 +20,9 @@ const fakeUsers = [
     nationalCode: "0081234567",
     mobile: "09121234567",
     email: "ahmadi@gmail.com",
-    birthday: "1365/05/20"
+    birthday: "1365/05/20",
+    role: "USER" as const,
+    password: "user123"
   },
   {
     firstName: "مریم",
@@ -25,7 +30,9 @@ const fakeUsers = [
     nationalCode: "0091234568",
     mobile: "09351234568",
     email: "mohammadi@gmail.com",
-    birthday: "1372/10/15"
+    birthday: "1372/10/15",
+    role: "USER" as const,
+    password: "user123"
   },
   {
     firstName: "رضا",
@@ -33,7 +40,9 @@ const fakeUsers = [
     nationalCode: "0101234569",
     mobile: "09191234569",
     email: "karimi@gmail.com",
-    birthday: "1368/03/25"
+    birthday: "1368/03/25",
+    role: "USER" as const,
+    password: "user123"
   },
   {
     firstName: "زهرا",
@@ -41,7 +50,9 @@ const fakeUsers = [
     nationalCode: "0111234570",
     mobile: "09361234570",
     email: "rezayi@gmail.com",
-    birthday: "1375/07/08"
+    birthday: "1375/07/08",
+    role: "USER" as const,
+    password: "user123"
   },
   {
     firstName: "امیر",
@@ -49,7 +60,9 @@ const fakeUsers = [
     nationalCode: "0121234571",
     mobile: "09121234571",
     email: "fatemi@gmail.com",
-    birthday: "1370/12/03"
+    birthday: "1370/12/03",
+    role: "USER" as const,
+    password: "user123"
   },
   {
     firstName: "سارا",
@@ -57,7 +70,9 @@ const fakeUsers = [
     nationalCode: "0131234572",
     mobile: "09351234572",
     email: "hoseini@gmail.com",
-    birthday: "1373/08/19"
+    birthday: "1373/08/19",
+    role: "USER" as const,
+    password: "user123"
   },
   {
     firstName: "محمد",
@@ -65,7 +80,9 @@ const fakeUsers = [
     nationalCode: "0141234573",
     mobile: "09191234573",
     email: "jafari@gmail.com",
-    birthday: "1367/02/14"
+    birthday: "1367/02/14",
+    role: "USER" as const,
+    password: "user123"
   },
   {
     firstName: "نیلوفر",
@@ -73,7 +90,9 @@ const fakeUsers = [
     nationalCode: "0151234574",
     mobile: "09361234574",
     email: "angouri@gmail.com",
-    birthday: "1378/06/27"
+    birthday: "1378/06/27",
+    role: "USER" as const,
+    password: "user123"
   },
   {
     firstName: "امیرحسین",
@@ -81,7 +100,9 @@ const fakeUsers = [
     nationalCode: "0161234575",
     mobile: "09121234575",
     email: "olateaei@gmail.com",
-    birthday: "1371/04/05"
+    birthday: "1371/04/05",
+    role: "USER" as const,
+    password: "user123"
   }
 ]
 
@@ -90,12 +111,22 @@ async function main() {
 
   for (const user of fakeUsers) {
     try {
+      const passwordHash = await bcrypt.hash(user.password, 12)
       await prisma.user.upsert({
         where: { mobile: user.mobile },
         update: {},
-        create: user
+        create: {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          nationalCode: user.nationalCode,
+          mobile: user.mobile,
+          email: user.email,
+          birthday: user.birthday,
+          role: user.role,
+          passwordHash
+        }
       })
-      console.log(`✓ User ${user.firstName} ${user.lastName} created`)
+      console.log(`✓ User ${user.firstName} ${user.lastName} created (${user.role})`)
     } catch (error) {
       console.error(`✗ Error creating user ${user.firstName}:`, error)
     }
