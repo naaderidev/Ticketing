@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id            Int             @id @default(autoincrement())
+  name          String          @unique
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  subDepartments SubDepartment[]
+  tickets       Ticket[]
+  faqs          FAQ[]
+}
+
+model SubDepartment {
+  id                Int                 @id @default(autoincrement())
+  name              String
+  departmentId      Int
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  department        Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  tickets           Ticket[]
+  faqs              FAQ[]
+  predefinedMessages PredefinedMessage[]
+
+  @@unique([name, departmentId])
+}
+
+model FAQ {
+  id              Int             @id @default(autoincrement())
+  question        String
+  answer          String
+  priority        Int             @default(0)
+  departmentId    Int
+  subDepartmentId Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  department      Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  subDepartment   SubDepartment?  @relation(fields: [subDepartmentId], references: [id], onDelete: SetNull)
+}
+
+model Ticket {
+  id              Int             @id @default(autoincrement())
+  ticketId        String          @unique
+  subject         String
+  message         String          @db.Text
+  status          TicketStatus    @default(OPEN)
+  userName        String
+  departmentId    Int
+  subDepartmentId Int
+  userId          Int?
+  rating          Int?
+  closedBy        String?
+  closedReason    String?
+  closedAt        DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  department      Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  subDepartment   SubDepartment   @relation(fields: [subDepartmentId], references: [id], onDelete: Cascade)
+  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  replies         TicketReply[]
+  attachments     TicketAttachment[]
+  notifications   Notification[]
+}
+
+model TicketReply {
+  id          Int             @id @default(autoincrement())
+  ticketId    Int
+  senderType  SenderType
+  senderName  String
+  message     String          @db.Text
+  rating      Int?
+  createdAt   DateTime        @default(now())
+  ticket      Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  attachments TicketAttachment[]
+}
+
+model TicketAttachment {
+  id        Int         @id @default(autoincrement())
+  ticketId  Int?
+  replyId   Int?
+  fileName  String
+  fileSize  Int
+  fileType  String
+  fileUrl   String
+  createdAt DateTime    @default(now())
+  ticket    Ticket?     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  reply     TicketReply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+}
+
+model PredefinedMessage {
+  id              Int             @id @default(autoincrement())
+  title           String
+  content         String
+  shortCode       String          @unique
+  subDepartmentId Int?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  subDepartment   SubDepartment?  @relation(fields: [subDepartmentId], references: [id], onDelete: SetNull)
+}
+
+model Notification {
+  id            Int         @id @default(autoincrement())
+  ticketId      Int
+  userId        Int?
+  recipientType RecipientType
+  message       String
+  isRead        Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  ticket        Ticket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum SenderType {
+  USER
+  ADMIN
+}
+
+enum RecipientType {
+  USER
+  ADMIN
+}
+
+model User {
+  id            Int             @id @default(autoincrement())
+  firstName     String
+  lastName      String
+  nationalCode  String          @unique
+  mobile        String          @unique
+  email         String?
+  birthday      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  tickets       Ticket[]
+  notifications Notification[]
+}
