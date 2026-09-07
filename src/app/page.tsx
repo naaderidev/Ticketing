@@ -17,8 +17,8 @@ export default function HomePage() {
         <div className="container flex h-16 items-center justify-between">
             <Image
               src="/logo.png"
-              alt="تیکت یار"
-              className="h-8 w-auto"
+              alt="تیکتِ‌تو"
+              className="h-12 w-auto"
               width={100}
               height={100}
             />
@@ -31,7 +31,7 @@ export default function HomePage() {
       <main className="flex flex-1 flex-col items-center justify-center bg-linear-to-b from-muted/40 to-background p-4">
         <div className="mb-12 text-center">
           <h1 className="text-4xl font-bold tracking-tight">
-            به سیستم تیکتینگ <span className="text-indigo-600">تیکت یار</span>{" "}
+            به سیستم <span className="text-indigo-600">تیکتِ‌تو</span>{" "}
             خوش آمدید
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">

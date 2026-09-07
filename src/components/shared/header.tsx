@@ -37,8 +37,8 @@ export function Header({
             <Link href={backHref}>
               <Image
                 src="/logo.png"
-                alt="تیکت یار"
-                className="h-6 w-auto"
+                alt="تیکتِ‌تو"
+                className="h-12 w-auto"
                 width={100}
                 height={100}
               />

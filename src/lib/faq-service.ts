@@ -9,12 +9,14 @@ interface FaqFilters {
 export async function getFaqs(filters: FaqFilters = {}) {
   const where: Record<string, unknown> = {};
 
-  if (filters.departmentId) {
+  if (filters.departmentId && filters.departmentId !== "all") {
     where.departmentId = parseInt(filters.departmentId);
   }
 
-  if (filters.subDepartmentId) {
+  if (filters.subDepartmentId && filters.subDepartmentId !== "all" && filters.subDepartmentId !== "none") {
     where.subDepartmentId = parseInt(filters.subDepartmentId);
+  } else if (filters.subDepartmentId === "none") {
+    where.subDepartmentId = null;
   }
 
   return prisma.fAQ.findMany({

@@ -27,7 +27,7 @@ export const titles = {
 
   // User
   USER_DASHBOARD: "داشبورد کاربری",
-  USER_SUPPORT: "پشتیبانی تیکت یار",
+  USER_SUPPORT: "پشتیبانی تیکتِ‌تو",
   SIGNUP: "ثبت نام کاربر",
 
   // Wizard Categories

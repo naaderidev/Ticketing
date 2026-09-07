@@ -194,7 +194,7 @@ export async function createTicket(data: CreateTicketData) {
     data: {
       ticket: { connect: { id: ticket.id } },
       recipientType: "ADMIN",
-      message: `تیکت جدید ${ticket.ticketId} ایجاد شد`,
+      message: `تیکت جدید ${ticket.ticketId} توسط ${ticket.userName} برای دپارتمان ${ticket.department.name} ایجاد شد`,
     },
   });
 
@@ -204,7 +204,7 @@ export async function createTicket(data: CreateTicketData) {
         ticket: { connect: { id: ticket.id } },
         user: { connect: { id: userId } },
         recipientType: "USER",
-        message: `تیکت جدید ${ticket.ticketId} ایجاد شد`,
+        message: `تیکت جدید ${ticket.ticketId} توسط ${ticket.userName} برای دپارتمان ${ticket.department.name} ایجاد شد`,
       },
     });
   }
@@ -254,10 +254,14 @@ export async function updateTicket(ticketId: string, data: UpdateTicketData) {
   });
 
   if (data.departmentId || data.subDepartmentId) {
+    const newDept = data.departmentId
+      ? await prisma.department.findUnique({ where: { id: data.departmentId } })
+      : null;
+
     const notificationData: Prisma.NotificationCreateInput = {
       ticket: { connect: { id: ticket.id } },
       recipientType: "USER",
-      message: `تیکت ${ticket.ticketId} به دپارتمان جدید منتقل شد`,
+      message: `تیکت ${ticket.ticketId} توسط ${ticket.userName} به دپارتمان ${newDept?.name || "جدید"} منتقل شد`,
     };
 
     if (ticket.userId) {
@@ -349,7 +353,7 @@ export async function addReply(ticketId: string, data: ReplyData) {
   const notificationData: Prisma.NotificationCreateInput = {
     ticket: { connect: { id: ticket.id } },
     recipientType,
-    message: `پاسخ جدید در تیکت ${ticket.ticketId}`,
+    message: `پاسخ جدید توسط ${senderName} در تیکت ${ticket.ticketId} اضافه شد`,
   };
 
   if (senderType === "ADMIN" && ticket.userId) {

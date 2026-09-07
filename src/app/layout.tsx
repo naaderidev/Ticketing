@@ -11,8 +11,8 @@ const vazirmatn = Vazirmatn({
 });
 
 export const metadata: Metadata = {
-  title: "تیکت یار",
-  description: "سیستم پشتیبانی و مدیریت تیکت تیکت یار",
+  title: "تیکتِ‌تو",
+  description: "سیستم پشتیبانی و مدیریت تیکت تیکتِ‌تو",
   icons: {
     icon: "/logo.png",
   },
