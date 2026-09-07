@@ -1,4 +1,4 @@
-# Ticketing System (سیستم تیکتینگ)
+# Ticketing System 🎫
 
 A Persian (RTL) ticketing and support system built with Next.js. It provides a complete helpdesk solution with ticket management, department organization, FAQ management, and real-time notifications for both admin and user interfaces.
 
@@ -113,4 +113,4 @@ No license specified yet — add one (e.g. MIT) before treating this as open sou
 
 ## Acknowledgments
 
-Built with ❤️ by **Bahareh Naderi** and **Claude** (Anthropic).
+Built with ❤️ by **Bahareh Naderi** and **Mimo V2.5** .
