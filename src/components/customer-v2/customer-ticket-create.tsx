@@ -28,6 +28,7 @@ import {
 } from "@/hooks";
 import { useCustomerKnowledgeJourney } from "@/hooks/customer-support-center";
 import { createClientIdempotencyKey } from "@/lib/client-idempotency-key";
+import { getTicketSubmissionIssue } from "@/lib/customer-ticket-submission";
 import { cn } from "@/lib/utils";
 import { toPersianDigits } from "@/lib/format";
 import type { PendingAttachment } from "@/types/ticket";
@@ -188,7 +189,17 @@ function ExternalReferencePicker({
 
   return (
     <div className="space-y-3">
-      <Label htmlFor="business-reference-search">مرجع مرتبط</Label>
+      <div className="space-y-1">
+        <Label htmlFor="business-reference-search">
+          مرجع مرتبط <span className="text-destructive">(الزامی)</span>
+        </Label>
+        <p
+          id="business-reference-help"
+          className="text-xs leading-5 text-muted-foreground"
+        >
+          حداقل دو نویسه وارد کنید، سپس روی یکی از نتایج جست‌وجو کلیک کنید.
+        </p>
+      </div>
       <div className="relative">
         <Search className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input
@@ -198,8 +209,21 @@ function ExternalReferencePicker({
           placeholder="حداقل دو نویسه از شناسه یا عنوان"
           className="pr-9"
           autoComplete="off"
+          required
+          aria-describedby="business-reference-help"
         />
       </div>
+      {selected && (
+        <div
+          className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100"
+          role="status"
+        >
+          <Check className="h-4 w-4 shrink-0" />
+          <span>
+            مرجع انتخاب‌شده: <strong>{selected.label}</strong>
+          </span>
+        </div>
+      )}
       {search.isFetching && (
         <p className="text-sm text-muted-foreground" role="status">
           در حال جست‌وجوی امن…
@@ -225,6 +249,7 @@ function ExternalReferencePicker({
                 label: reference.displayLabel,
               })
             }
+            aria-pressed={selected?.key === reference.externalId}
             className={cn(
               "w-full cursor-pointer rounded-lg border p-3 text-right text-sm hover:border-primary",
               selected?.key === reference.externalId && "border-primary bg-primary/5"
@@ -326,13 +351,24 @@ export function CustomerTicketCreate({
     requestType,
   ]);
 
+  const submissionIssue = getTicketSubmissionIssue({
+    subject,
+    description,
+    requiresBusinessSubject: requestType?.requiresBusinessSubject ?? false,
+    businessSubjectType: requestType?.businessSubjectType ?? null,
+    businessReferenceReady,
+    businessReferenceIntegrationEnabled,
+  });
+
   function selectService(selected: CustomerCatalogService) {
+    setError(null);
     setService(selected);
     setRequestType(null);
     setReference(null);
   }
 
   function selectRequestType(selected: CustomerCatalogRequestType) {
+    setError(null);
     setRequestType(selected);
     setReference(null);
   }
@@ -356,9 +392,13 @@ export function CustomerTicketCreate({
   }
 
   function submit() {
+    if (submissionIssue) {
+      setError(submissionIssue);
+      return;
+    }
     const command = buildCommand();
-    if (!command || !businessReferenceReady) {
-      setError("اطلاعات الزامی یا مرجع مرتبط کامل نشده است.");
+    if (!command) {
+      setError("اطلاعات درخواست کامل نشده است.");
       return;
     }
     setError(null);
@@ -503,7 +543,10 @@ export function CustomerTicketCreate({
                   subjectType={requestType.businessSubjectType}
                   enabled={businessReferenceIntegrationEnabled}
                   selected={reference}
-                  onSelect={setReference}
+                  onSelect={(selectedReference) => {
+                    setError(null);
+                    setReference(selectedReference);
+                  }}
                 />
               )}
 
@@ -512,7 +555,10 @@ export function CustomerTicketCreate({
                 <Input
                   id="ticket-subject"
                   value={subject}
-                  onChange={(event) => setSubject(event.target.value)}
+                  onChange={(event) => {
+                    setError(null);
+                    setSubject(event.target.value);
+                  }}
                   maxLength={200}
                   placeholder="خلاصه‌ای روشن و کوتاه"
                 />
@@ -525,7 +571,10 @@ export function CustomerTicketCreate({
                 <Textarea
                   id="ticket-description"
                   value={description}
-                  onChange={(event) => setDescription(event.target.value)}
+                  onChange={(event) => {
+                    setError(null);
+                    setDescription(event.target.value);
+                  }}
                   maxLength={5000}
                   showCharacterCount={false}
                   rows={7}
@@ -549,8 +598,21 @@ export function CustomerTicketCreate({
                 />
               </div>
               {error && (
-                <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+                <p
+                  id="ticket-submission-error"
+                  className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive"
+                  role="alert"
+                >
                   {error}
+                </p>
+              )}
+              {!error && submissionIssue && (
+                <p
+                  id="ticket-submission-requirement"
+                  className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+                  role="status"
+                >
+                  {submissionIssue}
                 </p>
               )}
             </div>
@@ -576,13 +638,15 @@ export function CustomerTicketCreate({
             ) : (
               <Button
                 type="button"
-                disabled={
-                  createTicket.isPending ||
-                  !subject.trim() ||
-                  !description.trim() ||
-                  !businessReferenceReady
-                }
+                disabled={createTicket.isPending}
                 onClick={submit}
+                aria-describedby={
+                  error
+                    ? "ticket-submission-error"
+                    : submissionIssue
+                      ? "ticket-submission-requirement"
+                      : undefined
+                }
               >
                 <Send className="ml-2 h-4 w-4" />
                 {createTicket.isPending ? "در حال ثبت…" : "ثبت تیکت"}
