@@ -89,7 +89,7 @@ async function readExportReport(input: {
 
 export async function GET(
   request: Request,
-  { params }: RouteContext<"/api/v2/reporting/exports/[reportType]">
+  { params }: { params: Promise<{ reportType: string }> }
 ) {
   const requestId = getRequestId(request);
   try {

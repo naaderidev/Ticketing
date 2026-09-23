@@ -4,7 +4,7 @@ import { handleWorkspaceCommand } from "@/modules/tickets/transport/workspace-co
 
 export function POST(
   request: Request,
-  { params }: RouteContext<"/api/v2/workspace/tickets/[ticketId]/merge">,
+  { params }: { params: Promise<{ ticketId: string }> },
 ) {
   return handleWorkspaceCommand({
     request,
