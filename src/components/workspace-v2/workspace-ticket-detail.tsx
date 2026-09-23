@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/shared/file-upload";
 import { StarRating } from "@/components/shared/star-rating";
+import { createClientIdempotencyKey } from "@/lib/client-idempotency-key";
 import { formatDate, toPersianDigits } from "@/lib/format";
 import type { PendingAttachment } from "@/types/ticket";
 import type { WorkspaceTicketPriority } from "@/types/workspace-ticket-v2";
@@ -25,7 +26,6 @@ type ComposeMode = "public-replies" | "internal-notes" | "request-customer-input
 const modeLabels: Record<ComposeMode, string> = { "public-replies": "پاسخ عمومی", "internal-notes": "یادداشت داخلی", "request-customer-input": "درخواست اطلاعات از مشتری" };
 const priorities: WorkspaceTicketPriority[] = ["CRITICAL", "HIGH", "NORMAL", "LOW"];
 const MESSAGE_MAX_LENGTH = 5000;
-const makeKey = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 
 export function WorkspaceTicketDetail({ ticketId }: { ticketId: string }) {
   const { user } = useUser();
@@ -104,7 +104,13 @@ export function WorkspaceTicketDetail({ ticketId }: { ticketId: string }) {
   const ticket = query.data;
   const run = async (path: string, body: unknown, success: string) => {
     try {
-      await command.mutateAsync({ ticketId, version: ticket.version, path, body, idempotencyKey: makeKey() });
+      await command.mutateAsync({
+        ticketId,
+        version: ticket.version,
+        path,
+        body,
+        idempotencyKey: createClientIdempotencyKey(),
+      });
       toast.success(success);
       return true;
     } catch (error) {

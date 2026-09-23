@@ -27,6 +27,7 @@ import {
   usePartyContexts,
 } from "@/hooks";
 import { useCustomerKnowledgeJourney } from "@/hooks/customer-support-center";
+import { createClientIdempotencyKey } from "@/lib/client-idempotency-key";
 import { cn } from "@/lib/utils";
 import { toPersianDigits } from "@/lib/format";
 import type { PendingAttachment } from "@/types/ticket";
@@ -365,7 +366,7 @@ export function CustomerTicketCreate({
     const idempotencyKey =
       submission.current?.payload === payload
         ? submission.current.key
-        : crypto.randomUUID();
+        : createClientIdempotencyKey();
     submission.current = { payload, key: idempotencyKey };
     createTicket.mutate(
       { command, idempotencyKey },

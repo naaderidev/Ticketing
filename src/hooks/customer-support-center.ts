@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CustomerApiError } from "@/hooks/customer-tickets-v2";
+import { createClientIdempotencyKey } from "@/lib/client-idempotency-key";
 import type {
   CustomerKnowledgeArticle,
   CustomerKnowledgeConversationMessage,
@@ -71,7 +72,7 @@ export function useStartKnowledgeJourney() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Idempotency-Key": crypto.randomUUID(),
+              "Idempotency-Key": createClientIdempotencyKey(),
             },
             body: JSON.stringify(input),
           }
@@ -121,7 +122,7 @@ export function useConfirmKnowledgeResolution() {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Idempotency-Key": crypto.randomUUID(),
+              "Idempotency-Key": createClientIdempotencyKey(),
             },
             body: "{}",
           }

@@ -30,6 +30,7 @@ import {
   useTransitionCustomerTicketV2,
 } from "@/hooks/customer-tickets-v2";
 import { usePartyContexts } from "@/hooks/organization-contexts";
+import { createClientIdempotencyKey } from "@/lib/client-idempotency-key";
 import { formatDate, toPersianDigits } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { PendingAttachment } from "@/types/ticket";
@@ -50,7 +51,7 @@ type Submission = { payload: string; key: string };
 function stableKey(ref: MutableRefObject<Submission | null>, payload: unknown) {
   const serialized = JSON.stringify(payload);
   if (ref.current?.payload === serialized) return ref.current.key;
-  const key = crypto.randomUUID();
+  const key = createClientIdempotencyKey();
   ref.current = { payload: serialized, key };
   return key;
 }
