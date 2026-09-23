@@ -28,7 +28,10 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Error caught by boundary:", error, errorInfo);
+    console.error("UI error boundary triggered", {
+      errorType: error.name,
+      hasComponentStack: Boolean(errorInfo.componentStack),
+    });
   }
 
   render() {

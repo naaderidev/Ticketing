@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import {
   getSubDepartmentById,
   updateSubDepartment,
@@ -6,28 +6,30 @@ import {
 } from "@/lib/department-service";
 import { errors } from "@/lib/strings";
 import { subDepartmentSchema } from "@/lib/validations";
+import { requireAuthenticatedUser, requireGlobalPermission } from "@/lib/api-authorization";
+import { apiError, handleApiError, parseJsonBody, parsePositiveInteger } from "@/lib/api-validation";
+import { AUTHENTICATED_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuthenticatedUser();
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    const subDepartment = await getSubDepartmentById(parseInt(id));
+    const parsedId = parsePositiveInteger(id, "شناسه ساب‌دپارتمان");
+    if (!parsedId.success) return parsedId.response;
+    const subDepartment = await getSubDepartmentById(parsedId.data);
 
     if (!subDepartment) {
-      return NextResponse.json(
-        { error: errors.SUB_DEPARTMENT_NOT_FOUND },
-        { status: 404 }
-      );
+      return apiError(errors.SUB_DEPARTMENT_NOT_FOUND, 404, "NOT_FOUND");
     }
 
-    return NextResponse.json(subDepartment);
+    return apiJsonResponse(subDepartment);
   } catch (error) {
-    return NextResponse.json(
-      { error: errors.FETCH_SUB_DEPARTMENT },
-      { status: 500 }
-    );
+    return handleApiError(error, errors.FETCH_SUB_DEPARTMENT, "Error fetching sub-department");
   }
 }
 
@@ -36,26 +38,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireGlobalPermission("support.catalog.manage", { rateLimit: AUTHENTICATED_MUTATION_LIMIT });
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    const body = await request.json();
-    const result = subDepartmentSchema.safeParse(body);
-    if (!result.success) {
-      const firstError = result.error.issues[0]?.message || "داده‌های ورودی معتبر نیستند";
-      return NextResponse.json({ error: firstError }, { status: 400 });
-    }
-    const updated = await updateSubDepartment(parseInt(id), result.data.name);
-    return NextResponse.json(updated);
+    const parsedId = parsePositiveInteger(id, "شناسه ساب‌دپارتمان");
+    if (!parsedId.success) return parsedId.response;
+    const body = await parseJsonBody(request, subDepartmentSchema);
+    if (!body.success) return body.response;
+    const updated = await updateSubDepartment(parsedId.data, body.data.name);
+    return apiJsonResponse(updated);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : errors.UPDATE_SUB_DEPARTMENT;
-    const status = message.includes("الزامی")
-      ? 400
-      : message.includes("یافت نشد")
-        ? 404
-        : message.includes("قبلاً")
-          ? 409
-          : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.UPDATE_SUB_DEPARTMENT, "Error updating sub-department");
   }
 }
 
@@ -64,13 +58,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireGlobalPermission("support.catalog.manage", { rateLimit: AUTHENTICATED_MUTATION_LIMIT });
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    await deleteSubDepartment(parseInt(id));
-    return NextResponse.json({ message: "ساب‌دپارتمان با موفقیت حذف شد" });
+    const parsedId = parsePositiveInteger(id, "شناسه ساب‌دپارتمان");
+    if (!parsedId.success) return parsedId.response;
+    await deleteSubDepartment(parsedId.data);
+    return apiJsonResponse({ message: "ساب‌دپارتمان با موفقیت حذف شد" });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : errors.DELETE_SUB_DEPARTMENT;
-    const status = message.includes("وجود ندارد") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.DELETE_SUB_DEPARTMENT, "Error deleting sub-department");
   }
 }

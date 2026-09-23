@@ -8,6 +8,8 @@ import {
   subDepartmentSchema,
   faqSchema,
   predefinedMessageSchema,
+  ticketQuerySchema,
+  updateTicketSchema,
 } from "@/lib/validations";
 
 describe("Validation Schemas", () => {
@@ -200,6 +202,42 @@ describe("Validation Schemas", () => {
       const result = createTicketSchema.safeParse(invalidData);
       expect(result.success).toBe(false);
     });
+
+    it("should reject client-supplied identity fields", () => {
+      const result = createTicketSchema.safeParse({
+        subject: "مشکل در سیستم",
+        message: "متن پیام تستی",
+        departmentId: "1",
+        subDepartmentId: "1",
+        userName: "نام جعلی",
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it("accepts only opaque upload references for attachments", () => {
+      const valid = createTicketSchema.safeParse({
+        subject: "مشکل در سیستم",
+        message: "متن پیام تستی",
+        departmentId: "1",
+        subDepartmentId: "1",
+        attachments: [{ uploadId: "7e77c970-75ae-4f2e-a296-6d5183c9f12a" }],
+      });
+      const forgedMetadata = createTicketSchema.safeParse({
+        subject: "مشکل در سیستم",
+        message: "متن پیام تستی",
+        departmentId: "1",
+        subDepartmentId: "1",
+        attachments: [
+          {
+            uploadId: "7e77c970-75ae-4f2e-a296-6d5183c9f12a",
+            fileUrl: "/uploads/forged.pdf",
+          },
+        ],
+      });
+
+      expect(valid.success).toBe(true);
+      expect(forgedMetadata.success).toBe(false);
+    });
   });
 
   describe("replySchema", () => {
@@ -219,6 +257,25 @@ describe("Validation Schemas", () => {
       const invalidData = { message: "a".repeat(1001) };
       const result = replySchema.safeParse(invalidData);
       expect(result.success).toBe(false);
+    });
+
+    it("should reject client-supplied sender identity", () => {
+      expect(replySchema.safeParse({ message: "پاسخ", senderType: "ADMIN" }).success).toBe(false);
+    });
+  });
+
+  describe("ticket update and query schemas", () => {
+    it("requires a close reason when closing a ticket", () => {
+      expect(updateTicketSchema.safeParse({ status: "CLOSED" }).success).toBe(false);
+    });
+
+    it("accepts the current dashboard query contract", () => {
+      expect(ticketQuerySchema.safeParse({ dateFrom: "1405-06-21", limit: "1000" }).success).toBe(true);
+    });
+
+    it("rejects excessive page sizes and invalid dates", () => {
+      expect(ticketQuerySchema.safeParse({ limit: "1001" }).success).toBe(false);
+      expect(ticketQuerySchema.safeParse({ dateFrom: "1405-13-40" }).success).toBe(false);
     });
   });
 

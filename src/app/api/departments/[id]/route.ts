@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import {
   getDepartmentById,
   updateDepartment,
@@ -6,28 +6,30 @@ import {
 } from "@/lib/department-service";
 import { errors } from "@/lib/strings";
 import { departmentSchema } from "@/lib/validations";
+import { requireAuthenticatedUser, requireGlobalPermission } from "@/lib/api-authorization";
+import { apiError, handleApiError, parseJsonBody, parsePositiveInteger } from "@/lib/api-validation";
+import { AUTHENTICATED_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuthenticatedUser();
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    const department = await getDepartmentById(parseInt(id));
+    const parsedId = parsePositiveInteger(id, "شناسه دپارتمان");
+    if (!parsedId.success) return parsedId.response;
+    const department = await getDepartmentById(parsedId.data);
 
     if (!department) {
-      return NextResponse.json(
-        { error: errors.DEPARTMENT_NOT_FOUND },
-        { status: 404 }
-      );
+      return apiError(errors.DEPARTMENT_NOT_FOUND, 404, "NOT_FOUND");
     }
 
-    return NextResponse.json(department);
+    return apiJsonResponse(department);
   } catch (error) {
-    return NextResponse.json(
-      { error: errors.FETCH_DEPARTMENT },
-      { status: 500 }
-    );
+    return handleApiError(error, errors.FETCH_DEPARTMENT, "Error fetching department");
   }
 }
 
@@ -36,24 +38,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireGlobalPermission("support.catalog.manage", { rateLimit: AUTHENTICATED_MUTATION_LIMIT });
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    const body = await request.json();
-    const result = departmentSchema.safeParse(body);
-    if (!result.success) {
-      const firstError = result.error.issues[0]?.message || "داده‌های ورودی معتبر نیستند";
-      return NextResponse.json({ error: firstError }, { status: 400 });
-    }
-    const department = await updateDepartment(parseInt(id), result.data.name);
-    return NextResponse.json(department);
+    const parsedId = parsePositiveInteger(id, "شناسه دپارتمان");
+    if (!parsedId.success) return parsedId.response;
+    const body = await parseJsonBody(request, departmentSchema);
+    if (!body.success) return body.response;
+    const department = await updateDepartment(parsedId.data, body.data.name);
+    return apiJsonResponse(department);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : errors.UPDATE_DEPARTMENT;
-    const status = message.includes("الزامی")
-      ? 400
-      : message.includes("قبلاً")
-        ? 409
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.UPDATE_DEPARTMENT, "Error updating department");
   }
 }
 
@@ -62,13 +58,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireGlobalPermission("support.catalog.manage", { rateLimit: AUTHENTICATED_MUTATION_LIMIT });
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    await deleteDepartment(parseInt(id));
-    return NextResponse.json({ message: "دپارتمان با موفقیت حذف شد" });
+    const parsedId = parsePositiveInteger(id, "شناسه دپارتمان");
+    if (!parsedId.success) return parsedId.response;
+    await deleteDepartment(parsedId.data);
+    return apiJsonResponse({ message: "دپارتمان با موفقیت حذف شد" });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : errors.DELETE_DEPARTMENT;
-    const status = message.includes("وجود ندارد") ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.DELETE_DEPARTMENT, "Error deleting department");
   }
 }

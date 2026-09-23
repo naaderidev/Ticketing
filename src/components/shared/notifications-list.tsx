@@ -4,14 +4,21 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Bell, CheckCheck, Ticket, ArrowLeft } from "lucide-react"
+import { AlertCircle, Bell, CheckCheck, Ticket, ArrowLeft, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toPersianDigits, formatRelativeTime } from "@/lib/format"
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from "@/hooks"
 import { toast } from "sonner"
 
 export function NotificationsList() {
-  const { data: notificationData, isLoading } = useNotifications();
+  const {
+    data: notificationData,
+    error,
+    isError,
+    isFetching,
+    isLoading,
+    refetch,
+  } = useNotifications();
   const markNotificationReadMutation = useMarkNotificationRead();
   const markAllNotificationsReadMutation = useMarkAllNotificationsRead();
 
@@ -71,6 +78,30 @@ export function NotificationsList() {
           {isLoading ? (
             <div className="flex justify-center py-12">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            </div>
+          ) : isError ? (
+            <div
+              role="alert"
+              className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center"
+            >
+              <AlertCircle className="h-8 w-8 text-destructive" />
+              <div className="space-y-1">
+                <p className="font-medium">دریافت نوتیفیکیشن‌ها ناموفق بود</p>
+                <p className="text-sm text-muted-foreground">
+                  {error instanceof Error
+                    ? error.message
+                    : "لطفاً اتصال خود را بررسی و دوباره تلاش کنید."}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+              >
+                <RefreshCw className={cn("ml-2 h-4 w-4", isFetching && "animate-spin")} />
+                {isFetching ? "در حال تلاش..." : "تلاش مجدد"}
+              </Button>
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">

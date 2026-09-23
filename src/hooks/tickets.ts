@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ticket, Attachment } from "@/types/ticket";
+import { Ticket, PendingAttachment } from "@/types/ticket";
 
 export interface TicketFilters {
   search?: string;
@@ -41,6 +41,7 @@ export function useTickets(filters: TicketFilters) {
 
   return useQuery<TicketListResponse>({
     queryKey: ["tickets", filters],
+    enabled: filters.limit !== 0,
     queryFn: async () => {
       const res = await fetch(`/api/tickets?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch tickets");
@@ -68,16 +69,18 @@ export function useCreateTicket() {
     mutationFn: async (data: {
       subject: string;
       message: string;
-      userName: string;
       departmentId: string;
       subDepartmentId: string;
-      attachments?: Attachment[];
+      attachments?: PendingAttachment[];
       userId?: number;
     }) => {
       const res = await fetch("/api/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          attachments: data.attachments?.map(({ uploadId }) => ({ uploadId })),
+        }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -94,7 +97,6 @@ export function useCreateTicket() {
 interface TicketUpdateData {
   status?: "OPEN" | "IN_PROGRESS" | "CLOSED";
   closedReason?: string;
-  closedBy?: "USER" | "ADMIN";
   departmentId?: number;
   subDepartmentId?: number;
 }
@@ -144,16 +146,17 @@ export function useAddReply() {
     mutationFn: async ({ ticketId, data }: {
       ticketId: string;
       data: {
-        senderType: "USER" | "ADMIN";
-        senderName: string;
         message: string;
-        attachments?: Attachment[];
+        attachments?: PendingAttachment[];
       };
     }) => {
       const res = await fetch(`/api/tickets/${ticketId}/replies`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          attachments: data.attachments?.map(({ uploadId }) => ({ uploadId })),
+        }),
       });
       if (!res.ok) {
         const err = await res.json();

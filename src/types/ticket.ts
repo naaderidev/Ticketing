@@ -1,9 +1,17 @@
 export interface Attachment {
-  id?: string;
+  id: number;
   fileName: string;
   fileSize: number;
   fileType: string;
   fileUrl: string;
+}
+
+export interface PendingAttachment {
+  uploadId: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  expiresAt: string;
 }
 
 export interface Reply {

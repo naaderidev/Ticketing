@@ -1,78 +1,86 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import { getTickets, createTicket } from "@/lib/ticket-service";
 import { errors } from "@/lib/strings";
-import { createTicketSchema } from "@/lib/validations";
-import { getAuthUser } from "@/lib/auth";
+import { createTicketSchema, ticketQuerySchema } from "@/lib/validations";
+import { requireAuthenticatedUser } from "@/lib/api-authorization";
+import { prisma } from "@/lib/prisma";
+import { apiError, handleApiError, parseJsonBody, parseQuery } from "@/lib/api-validation";
+import { AUTHENTICATED_MUTATION_LIMIT } from "@/lib/rate-limit";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 export async function GET(request: Request) {
   try {
-    const authUser = await getAuthUser();
-    if (!authUser) {
-      return NextResponse.json(
-        { error: "احراز هویت الزامی است" },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuthenticatedUser();
+    if (!auth.authorized) return auth.response;
+    const authUser = auth.value;
 
     const { searchParams } = new URL(request.url);
+    const query = parseQuery(searchParams, ticketQuerySchema);
+    if (!query.success) return query.response;
 
     const result = await getTickets({
-      search: searchParams.get("search") || undefined,
-      status: searchParams.get("status") || undefined,
-      departmentId: searchParams.get("departmentId") || undefined,
-      subDepartmentId: searchParams.get("subDepartmentId") || undefined,
-      dateFrom: searchParams.get("dateFrom") || undefined,
-      dateTo: searchParams.get("dateTo") || undefined,
-      userName: searchParams.get("userName") || undefined,
-      userId: authUser.role === "ADMIN"
-        ? searchParams.get("userId") || undefined
-        : authUser.id.toString(),
-      page: parseInt(searchParams.get("page") || "1"),
-      limit: parseInt(searchParams.get("limit") || "10"),
+      ...query.data,
+      userId: authUser.role === "ADMIN" ? query.data.userId : authUser.id.toString(),
     });
 
-    return NextResponse.json(result);
+    return apiJsonResponse(result);
   } catch (error) {
-    console.error("Error fetching tickets:", error);
-    return NextResponse.json(
-      { error: errors.FETCH_TICKETS },
-      { status: 500 }
-    );
+    return handleApiError(error, errors.FETCH_TICKETS, "Error fetching tickets");
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const authUser = await getAuthUser();
-    if (!authUser) {
-      return NextResponse.json(
-        { error: "احراز هویت الزامی است" },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuthenticatedUser({
+      rateLimit: AUTHENTICATED_MUTATION_LIMIT,
+    });
+    if (!auth.authorized) return auth.response;
+    const authUser = auth.value;
 
-    const body = await request.json();
-    
-    const result = createTicketSchema.safeParse(body);
-    if (!result.success) {
-      const firstError = result.error.issues[0]?.message || "داده‌های ورودی معتبر نیستند";
-      return NextResponse.json({ error: firstError }, { status: 400 });
+    const body = await parseJsonBody(request, createTicketSchema);
+    if (!body.success) return body.response;
+
+    let ticketOwner = authUser;
+    if (authUser.role === "ADMIN" && body.data.userId) {
+      const requestedOwner = await prisma.user.findUnique({
+        where: { id: body.data.userId },
+        select: {
+          id: true,
+          mobile: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+        },
+      });
+      if (!requestedOwner) {
+        return apiError("کاربر یافت نشد", 404, "NOT_FOUND");
+      }
+      ticketOwner = { ...requestedOwner, sessionId: authUser.sessionId };
     }
 
     const ticket = await createTicket({
-      ...body,
-      userId: authUser.role === "ADMIN" ? (body.userId || authUser.id) : authUser.id,
+      subject: body.data.subject,
+      message: body.data.message,
+      departmentId: body.data.departmentId,
+      subDepartmentId: body.data.subDepartmentId,
+      attachments: body.data.attachments,
+      attachmentUploaderId: authUser.id,
+      userName: `${ticketOwner.firstName} ${ticketOwner.lastName}`.trim(),
+      userId: ticketOwner.id,
+      actorUserId: authUser.id,
+      actorType: authUser.role === "ADMIN" ? "STAFF" : "USER",
     });
-    return NextResponse.json(ticket, { status: 201 });
+    await recordAuditEvent({
+      request,
+      action: "TICKET_CREATE",
+      outcome: "SUCCESS",
+      actorUserId: authUser.id,
+      sessionId: authUser.sessionId,
+      targetType: "TICKET",
+      targetId: ticket.ticketId,
+    });
+    return apiJsonResponse(ticket, { status: 201 });
   } catch (error) {
-    console.error("Error creating ticket:", error);
-    const message =
-      error instanceof Error ? error.message : errors.CREATE_TICKET;
-    const status = message.includes(errors.TICKET_NOT_FOUND.split(" ").pop() || "یافت نشد")
-      ? 404
-      : message.includes(errors.ALL_FIELDS_REQUIRED.split(" ").pop() || "الزامی") || message.includes(errors.SUB_DEPARTMENT_DEPARTMENT_MISMATCH.split(" ").pop() || "نیست")
-        ? 400
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.CREATE_TICKET, "Error creating ticket");
   }
 }

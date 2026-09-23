@@ -20,15 +20,13 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2, MessageSquare, Copy, Check } from "lucide-react";
 import { labels } from "@/lib/strings";
-import { PredefinedMessage, SubDepartment } from "@/types/ticket";
+import { PredefinedMessage } from "@/types/ticket";
 
 interface MessageListProps {
-  messages: PredefinedMessage[];
   filteredMessages: PredefinedMessage[];
   isLoading: boolean;
   filterCategory: string;
   categories: { id: string; name: string }[];
-  subDepartments: SubDepartment[];
   copiedId: string | null;
   onFilterCategoryChange: (value: string) => void;
   onEdit: (msg: PredefinedMessage) => void;
@@ -58,7 +56,6 @@ const getCategoryVariant = (
 };
 
 export function MessageList({
-  messages,
   filteredMessages,
   isLoading,
   filterCategory,

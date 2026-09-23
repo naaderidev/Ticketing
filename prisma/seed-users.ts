@@ -1,145 +1,106 @@
-import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient();
 
-const fakeUsers = [
-  {
-    firstName: "بهاره",
-    lastName: "نادری",
-    nationalCode: "0251235695",
-    mobile: "09193578585",
-    email: "naderi@gmail.com",
-    birthday: "1370/01/11",
-    role: "ADMIN" as const,
-    password: "admin123"
-  },
-  {
-    firstName: "علی",
-    lastName: "احمدی",
-    nationalCode: "0081234567",
-    mobile: "09121234567",
-    email: "ahmadi@gmail.com",
-    birthday: "1365/05/20",
-    role: "USER" as const,
-    password: "user123"
-  },
-  {
-    firstName: "مریم",
-    lastName: "محمدی",
-    nationalCode: "0091234568",
-    mobile: "09351234568",
-    email: "mohammadi@gmail.com",
-    birthday: "1372/10/15",
-    role: "USER" as const,
-    password: "user123"
-  },
-  {
-    firstName: "رضا",
-    lastName: "کریمی",
-    nationalCode: "0101234569",
-    mobile: "09191234569",
-    email: "karimi@gmail.com",
-    birthday: "1368/03/25",
-    role: "USER" as const,
-    password: "user123"
-  },
-  {
-    firstName: "زهرا",
-    lastName: "رضایی",
-    nationalCode: "0111234570",
-    mobile: "09361234570",
-    email: "rezayi@gmail.com",
-    birthday: "1375/07/08",
-    role: "USER" as const,
-    password: "user123"
-  },
-  {
-    firstName: "امیر",
-    lastName: "فاطمی",
-    nationalCode: "0121234571",
-    mobile: "09121234571",
-    email: "fatemi@gmail.com",
-    birthday: "1370/12/03",
-    role: "USER" as const,
-    password: "user123"
-  },
-  {
-    firstName: "سارا",
-    lastName: "حسینی",
-    nationalCode: "0131234572",
-    mobile: "09351234572",
-    email: "hoseini@gmail.com",
-    birthday: "1373/08/19",
-    role: "USER" as const,
-    password: "user123"
-  },
-  {
-    firstName: "محمد",
-    lastName: "جعفری",
-    nationalCode: "0141234573",
-    mobile: "09191234573",
-    email: "jafari@gmail.com",
-    birthday: "1367/02/14",
-    role: "USER" as const,
-    password: "user123"
-  },
-  {
-    firstName: "نیلوفر",
-    lastName: "앙وری",
-    nationalCode: "0151234574",
-    mobile: "09361234574",
-    email: "angouri@gmail.com",
-    birthday: "1378/06/27",
-    role: "USER" as const,
-    password: "user123"
-  },
-  {
-    firstName: "امیرحسین",
-    lastName: "pleteaei",
-    nationalCode: "0161234575",
-    mobile: "09121234575",
-    email: "olateaei@gmail.com",
-    birthday: "1371/04/05",
-    role: "USER" as const,
-    password: "user123"
+function requireSeedValue(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required to seed the initial administrator`);
   }
-]
+  return value;
+}
 
 async function main() {
-  console.log('Seeding users...')
-
-  for (const user of fakeUsers) {
-    try {
-      const passwordHash = await bcrypt.hash(user.password, 12)
-      await prisma.user.upsert({
-        where: { mobile: user.mobile },
-        update: {},
-        create: {
-          firstName: user.firstName,
-          lastName: user.lastName,
-          nationalCode: user.nationalCode,
-          mobile: user.mobile,
-          email: user.email,
-          birthday: user.birthday,
-          role: user.role,
-          passwordHash
-        }
-      })
-      console.log(`✓ User ${user.firstName} ${user.lastName} created (${user.role})`)
-    } catch (error) {
-      console.error(`✗ Error creating user ${user.firstName}:`, error)
-    }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Development seed scripts must not run in production");
   }
 
-  console.log('Seeding complete!')
+  const mobile = requireSeedValue("SEED_ADMIN_MOBILE");
+  const nationalCode = requireSeedValue("SEED_ADMIN_NATIONAL_CODE");
+  const password = requireSeedValue("SEED_ADMIN_PASSWORD");
+
+  if (password.length < 12) {
+    throw new Error("SEED_ADMIN_PASSWORD must contain at least 12 characters");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  const firstName = requireSeedValue("SEED_ADMIN_FIRST_NAME");
+  const lastName = requireSeedValue("SEED_ADMIN_LAST_NAME");
+  const admin = await prisma.user.upsert({
+    where: { mobile },
+    update: {},
+    create: {
+      firstName,
+      lastName,
+      nationalCode,
+      mobile,
+      email: process.env.SEED_ADMIN_EMAIL?.trim() || null,
+      birthday: process.env.SEED_ADMIN_BIRTHDAY?.trim() || null,
+      role: "ADMIN",
+      passwordHash,
+    },
+  });
+
+  const personProfile = await prisma.personProfile.findUnique({
+    where: { userId: admin.id },
+    select: { id: true },
+  });
+  if (!personProfile) {
+    await prisma.party.create({
+      data: {
+        type: "PERSON",
+        displayName: `${admin.firstName} ${admin.lastName}`.trim(),
+        personProfile: { create: { userId: admin.id } },
+      },
+    });
+  }
+
+  const systemAdministratorRole = await prisma.role.findUnique({
+    where: { key: "SYSTEM_ADMINISTRATOR" },
+    select: { id: true },
+  });
+  if (!systemAdministratorRole) {
+    throw new Error(
+      "SYSTEM_ADMINISTRATOR role is missing; apply database migrations before seeding"
+    );
+  }
+  await prisma.userRoleAssignment.upsert({
+    where: {
+      userId_roleId_scopeType_scopeKey: {
+        userId: admin.id,
+        roleId: systemAdministratorRole.id,
+        scopeType: "GLOBAL",
+        scopeKey: "*",
+      },
+    },
+    update: { status: "ACTIVE", validTo: null },
+    create: {
+      userId: admin.id,
+      roleId: systemAdministratorRole.id,
+      scopeType: "GLOBAL",
+      scopeKey: "*",
+      status: "ACTIVE",
+    },
+  });
+
+  console.log("Initial administrator seed completed");
 }
 
 main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
+  .catch((error: unknown) => {
+    console.error(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        level: "error",
+        event: "initial_administrator_seed_failed",
+        service: "ticketing-system-seed",
+        errorType: error instanceof Error ? error.name : "UnknownError",
+      })
+    );
+    process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect()
-  })
+    await prisma.$disconnect();
+  });

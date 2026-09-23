@@ -8,118 +8,955 @@ datasource db {
 }
 
 model Department {
-  id            Int             @id @default(autoincrement())
-  name          String          @unique
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  subDepartments SubDepartment[]
-  tickets       Ticket[]
-  faqs          FAQ[]
+  id              Int                           @id @default(autoincrement())
+  name            String                        @unique
+  createdAt       DateTime                      @default(now())
+  updatedAt       DateTime                      @updatedAt
+  internalOnly    Boolean                       @default(false)
+  subDepartments  SubDepartment[]
+  tickets         Ticket[]
+  faqs            FAQ[]
+  catalogMappings LegacySupportCatalogMapping[]
 }
 
 model SubDepartment {
-  id                Int                 @id @default(autoincrement())
-  name              String
-  departmentId      Int
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  department        Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  tickets           Ticket[]
-  faqs              FAQ[]
+  id                 Int                           @id @default(autoincrement())
+  name               String
+  departmentId       Int
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+  internalOnly       Boolean                       @default(false)
+  department         Department                    @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  tickets            Ticket[]
+  faqs               FAQ[]
   predefinedMessages PredefinedMessage[]
+  catalogMappings    LegacySupportCatalogMapping[]
 
   @@unique([name, departmentId])
 }
 
 model FAQ {
-  id              Int             @id @default(autoincrement())
-  question        String          @db.VarChar(500)
-  answer          String          @db.Text
-  priority        Int             @default(0)
-  departmentId    Int
-  subDepartmentId Int?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  department      Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  subDepartment   SubDepartment?  @relation(fields: [subDepartmentId], references: [id], onDelete: SetNull)
+  id               Int               @id @default(autoincrement())
+  question         String            @db.VarChar(500)
+  answer           String            @db.Text
+  priority         Int               @default(0)
+  departmentId     Int
+  subDepartmentId  Int?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  department       Department        @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  subDepartment    SubDepartment?    @relation(fields: [subDepartmentId], references: [id], onDelete: SetNull)
+  knowledgeArticle KnowledgeArticle?
+
+  @@index([departmentId, subDepartmentId, priority])
+}
+
+model KnowledgeArticle {
+  id                 Int                       @id @default(autoincrement())
+  slug               String                    @unique @db.VarChar(191)
+  audience           KnowledgeAudience         @default(AUTHENTICATED)
+  status             KnowledgeArticleStatus    @default(DRAFT)
+  serviceId          Int?
+  requestTypeId      Int?
+  searchKeywords     String?                   @db.Text
+  sourceFaqId        Int?                      @unique
+  createdById        Int?
+  publishedVersionId BigInt?                   @unique
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  service            SupportService?           @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  requestType        SupportRequestType?       @relation(fields: [requestTypeId], references: [id], onDelete: SetNull)
+  sourceFaq          FAQ?                      @relation(fields: [sourceFaqId], references: [id], onDelete: SetNull)
+  createdBy          User?                     @relation("KnowledgeArticleCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  publishedVersion   KnowledgeArticleVersion?  @relation("PublishedKnowledgeVersion", fields: [publishedVersionId], references: [id], onDelete: Restrict)
+  versions           KnowledgeArticleVersion[] @relation("KnowledgeArticleVersions")
+
+  @@index([status, audience, updatedAt])
+  @@index([serviceId, requestTypeId, status])
+  @@index([createdById])
+}
+
+model KnowledgeArticleVersion {
+  id                  BigInt                  @id @default(autoincrement())
+  articleId           Int
+  version             Int
+  title               String                  @db.VarChar(500)
+  body                String                  @db.Text
+  approvalStatus      KnowledgeApprovalStatus @default(DRAFT)
+  contentChecksum     String                  @db.Char(64)
+  approvedById        Int?
+  approvedAt          DateTime?
+  publishedAt         DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  article             KnowledgeArticle        @relation("KnowledgeArticleVersions", fields: [articleId], references: [id], onDelete: Cascade)
+  approvedBy          User?                   @relation("KnowledgeVersionApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  publishedForArticle KnowledgeArticle?       @relation("PublishedKnowledgeVersion")
+  supportJourneys     SupportJourney[]
+
+  @@unique([articleId, version])
+  @@index([approvalStatus, publishedAt])
+  @@index([approvedById])
 }
 
 model Ticket {
-  id              Int             @id @default(autoincrement())
-  ticketId        String          @unique
-  subject         String
-  message         String          @db.Text
-  status          TicketStatus    @default(OPEN)
-  userName        String
-  departmentId    Int
-  subDepartmentId Int
-  userId          Int?
-  rating          Int?
-  closedBy        String?
-  closedReason    String?
-  closedAt        DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  department      Department      @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  subDepartment   SubDepartment   @relation(fields: [subDepartmentId], references: [id], onDelete: Cascade)
-  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
-  replies         TicketReply[]
-  attachments     TicketAttachment[]
-  notifications   Notification[]
+  id                    Int                          @id @default(autoincrement())
+  ticketId              String                       @unique
+  subject               String
+  message               String                       @db.Text
+  status                TicketStatus                 @default(OPEN)
+  lifecycleStatus       TicketLifecycleStatus?
+  priority              SupportPriority?
+  version               Int                          @default(1)
+  routeVersion          Int?
+  userName              String
+  departmentId          Int
+  subDepartmentId       Int
+  userId                Int?
+  createdById           Int?
+  partyId               Int?
+  organizationId        Int?
+  requestTypeId         Int?
+  supportTeamId         Int?
+  queueId               Int?
+  ownerUserId           Int?
+  servicePlanId         Int?
+  legacyImported        Boolean                      @default(false)
+  rating                Int?
+  rootCause             String?                      @db.Text
+  normalizedRootCauseId Int?
+  resolutionSummary     String?                      @db.Text
+  actionTaken           String?                      @db.Text
+  finalResponse         String?                      @db.Text
+  mergedIntoTicketId    Int?
+  mergedById            Int?
+  mergeReason           String?                      @db.VarChar(500)
+  mergedAt              DateTime?
+  closedBy              String?
+  closedReason          String?
+  closedAt              DateTime?
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  department            Department                   @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  subDepartment         SubDepartment                @relation(fields: [subDepartmentId], references: [id], onDelete: Restrict)
+  user                  User?                        @relation("LegacyTicketUser", fields: [userId], references: [id], onDelete: SetNull)
+  createdBy             User?                        @relation("TicketCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  party                 Party?                       @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  organization          Organization?                @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestType           SupportRequestType?          @relation(fields: [requestTypeId], references: [id], onDelete: Restrict)
+  supportTeam           SupportTeam?                 @relation(fields: [supportTeamId], references: [id], onDelete: Restrict)
+  queue                 SupportQueue?                @relation(fields: [queueId], references: [id], onDelete: Restrict)
+  ownerUser             User?                        @relation("TicketOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  servicePlan           OrganizationServicePlan?     @relation(fields: [servicePlanId], references: [id], onDelete: SetNull)
+  accountReview         TicketAccountReview?
+  replies               TicketReply[]
+  attachments           TicketAttachment[]
+  notifications         Notification[]
+  messages              TicketMessage[]
+  events                TicketEvent[]
+  assignments           TicketAssignment[]
+  businessReferences    TicketBusinessReference[]
+  commandReceipts       TicketCommandReceipt[]
+  sla                   TicketSla?
+  routingDecisions      RoutingDecision[]
+  workItems             TicketWorkItem[]
+  resolutionCycles      TicketResolutionCycle[]
+  normalizedRootCause   ReportingRootCauseDimension? @relation(fields: [normalizedRootCauseId], references: [id], onDelete: Restrict)
+  mergedIntoTicket      Ticket?                      @relation("TicketMerge", fields: [mergedIntoTicketId], references: [id], onDelete: Restrict)
+  mergedTickets         Ticket[]                     @relation("TicketMerge")
+  mergedBy              User?                        @relation("TicketMergedBy", fields: [mergedById], references: [id], onDelete: SetNull)
+  reportingFact         TicketReportingFact?
+  convertedJourneys     SupportJourney[]             @relation("SupportJourneyConvertedTicket")
+  incidentLinks         SupportIncidentTicket[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([departmentId, subDepartmentId, createdAt])
+  @@index([partyId, updatedAt, id])
+  @@index([organizationId, updatedAt, id])
+  @@index([queueId, lifecycleStatus, updatedAt, id])
+  @@index([supportTeamId, lifecycleStatus, updatedAt, id])
+  @@index([ownerUserId, lifecycleStatus, updatedAt, id])
+  @@index([servicePlanId, createdAt])
+  @@index([requestTypeId, lifecycleStatus, createdAt])
+  @@index([normalizedRootCauseId])
+  @@index([mergedIntoTicketId, mergedAt])
+  @@index([mergedById, mergedAt])
+}
+
+model TicketMessage {
+  id             BigInt                  @id @default(autoincrement())
+  ticketId       Int
+  visibility     TicketMessageVisibility @default(PUBLIC)
+  authorType     TicketMessageAuthorType
+  actorUserId    Int?
+  authorPartyId  Int?
+  authorSnapshot String?                 @db.VarChar(150)
+  body           String                  @db.Text
+  sourceType     TicketMessageSource     @default(NATIVE)
+  legacySourceId Int?
+  createdAt      DateTime                @default(now())
+  ticket         Ticket                  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actorUser      User?                   @relation("TicketMessageActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  authorParty    Party?                  @relation("TicketMessageParty", fields: [authorPartyId], references: [id], onDelete: SetNull)
+  attachments    TicketAttachment[]
+
+  @@unique([sourceType, legacySourceId])
+  @@index([ticketId, createdAt, id])
+}
+
+model TicketEvent {
+  id               BigInt                 @id @default(autoincrement())
+  eventId          String                 @unique @db.Char(36)
+  ticketId         Int
+  type             String                 @db.VarChar(100)
+  schemaVersion    Int                    @default(1)
+  aggregateVersion Int?
+  visibility       TicketEventVisibility  @default(INTERNAL)
+  fromStatus       TicketLifecycleStatus?
+  toStatus         TicketLifecycleStatus?
+  actorType        TicketEventActorType
+  sourceType       TicketEventSourceType
+  actorUserId      Int?
+  correlationId    String?                @db.Char(36)
+  causationId      String?                @db.Char(36)
+  reason           String?                @db.VarChar(500)
+  metadata         Json?
+  createdAt        DateTime               @default(now())
+  ticket           Ticket                 @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actorUser        User?                  @relation("TicketEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  outboxEvent      OutboxEvent?
+
+  @@index([ticketId, createdAt, id])
+  @@index([ticketId, aggregateVersion, id])
+  @@index([type, createdAt])
+  @@index([actorType, sourceType, type, createdAt], map: "TicketEvent_actor_source_type_created_idx")
+}
+
+model OutboxEvent {
+  id            BigInt           @id @default(autoincrement())
+  eventId       String           @unique @db.Char(36)
+  ticketEventId BigInt?          @unique
+  aggregateType String           @db.VarChar(64)
+  aggregateId   String           @db.VarChar(191)
+  eventType     String           @db.VarChar(100)
+  schemaVersion Int              @default(1)
+  payload       Json
+  occurredAt    DateTime         @default(now())
+  availableAt   DateTime         @default(now())
+  publishedAt   DateTime?
+  attemptCount  Int              @default(0)
+  lockedAt      DateTime?
+  lastError     String?          @db.Text
+  ticketEvent   TicketEvent?     @relation(fields: [ticketEventId], references: [id], onDelete: SetNull)
+  deliveries    OutboxDelivery[]
+
+  @@index([publishedAt, availableAt, id])
+  @@index([aggregateType, aggregateId, occurredAt])
+  @@index([eventType, occurredAt])
+}
+
+model OutboxDelivery {
+  id            BigInt               @id @default(autoincrement())
+  outboxEventId BigInt
+  consumer      String               @db.VarChar(100)
+  status        OutboxDeliveryStatus @default(PENDING)
+  attemptCount  Int                  @default(0)
+  availableAt   DateTime             @default(now())
+  lockedAt      DateTime?
+  lockToken     String?              @unique @db.Char(36)
+  processedAt   DateTime?
+  lastError     String?              @db.VarChar(500)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  outboxEvent   OutboxEvent          @relation(fields: [outboxEventId], references: [id], onDelete: Cascade)
+
+  @@unique([outboxEventId, consumer])
+  @@index([consumer, status, availableAt, id])
+  @@index([lockedAt])
+}
+
+model TicketAssignment {
+  id            BigInt       @id @default(autoincrement())
+  ticketId      Int
+  supportTeamId Int
+  queueId       Int
+  ownerUserId   Int?
+  assignedById  Int?
+  reason        String?      @db.VarChar(500)
+  activeKey     String?      @unique @db.VarChar(64)
+  startedAt     DateTime     @default(now())
+  endedAt       DateTime?
+  ticket        Ticket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  supportTeam   SupportTeam  @relation(fields: [supportTeamId], references: [id], onDelete: Restrict)
+  queue         SupportQueue @relation(fields: [queueId], references: [id], onDelete: Restrict)
+  ownerUser     User?        @relation("TicketAssignmentOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  assignedBy    User?        @relation("TicketAssignmentActor", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, startedAt])
+  @@index([supportTeamId, queueId, endedAt])
+  @@index([ownerUserId, endedAt])
+}
+
+model TicketWorkItem {
+  id             BigInt               @id @default(autoincrement())
+  ticketId       Int
+  supportTeamId  Int
+  queueId        Int
+  assignedUserId Int?
+  requestedById  Int
+  request        String               @db.Text
+  response       String?              @db.Text
+  status         TicketWorkItemStatus @default(OPEN)
+  createdAt      DateTime             @default(now())
+  completedAt    DateTime?
+  updatedAt      DateTime             @updatedAt
+  ticket         Ticket               @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  supportTeam    SupportTeam          @relation(fields: [supportTeamId], references: [id], onDelete: Restrict)
+  queue          SupportQueue         @relation(fields: [queueId], references: [id], onDelete: Restrict)
+  assignedUser   User?                @relation("TicketWorkItemAssignee", fields: [assignedUserId], references: [id], onDelete: Restrict)
+  requestedBy    User                 @relation("TicketWorkItemRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, status, createdAt])
+  @@index([supportTeamId, queueId, status, createdAt])
+  @@index([assignedUserId, status, createdAt])
+}
+
+model TicketResolutionCycle {
+  id            BigInt                  @id @default(autoincrement())
+  ticketId      Int
+  sequence      Int
+  proposedAt    DateTime
+  reminderOneAt DateTime
+  reminderTwoAt DateTime
+  autoCloseAt   DateTime
+  reminderCount Int                     @default(0)
+  outcome       TicketResolutionOutcome @default(PENDING)
+  activeKey     String?                 @unique @db.VarChar(64)
+  closedAt      DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  ticket        Ticket                  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, sequence])
+  @@index([outcome, autoCloseAt, id])
+  @@index([outcome, reminderCount, reminderOneAt, reminderTwoAt], map: "TicketResolutionCycle_reminders_idx")
+}
+
+model TicketBusinessReference {
+  id                 BigInt                              @id @default(autoincrement())
+  ticketId           Int
+  organizationId     Int?
+  referenceType      String                              @db.VarChar(64)
+  referenceKey       String                              @db.VarChar(191)
+  displayLabel       String?                             @db.VarChar(200)
+  verificationStatus TicketBusinessReferenceVerification @default(UNVERIFIED)
+  sourceSystem       String?                             @db.VarChar(64)
+  entityType         String?                             @db.VarChar(64)
+  externalId         String?                             @db.VarChar(191)
+  snapshotFetchedAt  DateTime?
+  snapshotExpiresAt  DateTime?
+  sourceVersion      String?                             @db.VarChar(64)
+  sourceEtag         String?                             @db.VarChar(191)
+  createdAt          DateTime                            @default(now())
+  ticket             Ticket                              @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  organization       Organization?                       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([ticketId, referenceType, referenceKey])
+  @@index([referenceType, referenceKey])
+  @@index([organizationId, ticketId])
+  @@index([sourceSystem, entityType, externalId], map: "TicketBusinessReference_source_entity_external_idx")
+  @@index([verificationStatus, referenceType, ticketId], map: "TicketBusinessReference_verified_type_ticket_idx")
+}
+
+model TicketCommandReceipt {
+  id             BigInt                     @id @default(autoincrement())
+  actorUserId    Int
+  partyId        Int
+  ticketId       Int?
+  route          String                     @db.VarChar(100)
+  keyHash        String                     @db.Char(64)
+  payloadHash    String                     @db.Char(64)
+  status         TicketCommandReceiptStatus @default(IN_PROGRESS)
+  responseStatus Int?
+  responseBody   Json?
+  expiresAt      DateTime
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  actorUser      User                       @relation(fields: [actorUserId], references: [id], onDelete: Cascade)
+  party          Party                      @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  ticket         Ticket?                    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([actorUserId, partyId, route, keyHash])
+  @@index([expiresAt])
+  @@index([ticketId])
+}
+
+model KpiDefinitionVersion {
+  version               String                          @id @db.VarChar(32)
+  status                ReportingDefinitionStatus       @default(DRAFT)
+  activeKey             String?                         @unique @db.VarChar(64)
+  contractHash          String                          @db.Char(64)
+  definition            Json
+  effectiveFrom         DateTime
+  effectiveTo           DateTime?
+  createdAt             DateTime                        @default(now())
+  updatedAt             DateTime                        @updatedAt
+  ticketFacts           TicketReportingFact[]
+  processedEvents       ReportingProcessedEvent[]
+  projectionCheckpoints ReportingProjectionCheckpoint[]
+  supportJourneys       SupportJourney[]
+  recurringSignals      RecurringProblemSignal[]
+
+  @@index([status, effectiveFrom, effectiveTo])
+}
+
+model TicketReportingFact {
+  id                                 BigInt                     @id @default(autoincrement())
+  ticketId                           Int                        @unique
+  definitionVersion                  String                     @db.VarChar(32)
+  sourceAggregateVersion             Int                        @default(0)
+  sourceLastEventId                  String?                    @db.Char(36)
+  ticketCreatedAt                    DateTime
+  slaStartedAt                       DateTime?
+  firstResponseDueAt                 DateTime?
+  resolutionDueAt                    DateTime?
+  firstHumanPublicResponseAt         DateTime?
+  firstResponsePauseMilliseconds     BigInt                     @default(0)
+  firstResponseEffectiveMilliseconds BigInt?
+  firstResolvedAt                    DateTime?
+  resolutionPauseMilliseconds        BigInt                     @default(0)
+  resolutionEffectiveMilliseconds    BigInt?
+  firstClosedAt                      DateTime?
+  lastClosedAt                       DateTime?
+  fcrMaturesAt                       DateTime?
+  fcrStatus                          ReportingFcrStatus         @default(EXCLUDED)
+  firstResponseSlaState              SlaTargetState?
+  resolutionSlaState                 SlaTargetState?
+  reopenedWithinWindow               Boolean?
+  reopenCount                        Int                        @default(0)
+  resolutionRejectionCount           Int                        @default(0)
+  reopenWithinWindowEventCount       Int                        @default(0)
+  customerReopenWithinWindowCount    Int                        @default(0)
+  staffReopenWithinWindowCount       Int                        @default(0)
+  systemReopenWithinWindowCount      Int                        @default(0)
+  publicStaffMessageCount            Int                        @default(0)
+  publicCustomerMessageCount         Int                        @default(0)
+  transferCount                      Int                        @default(0)
+  collaborationCount                 Int                        @default(0)
+  hasCustomerReplyAfterFirstResponse Boolean                    @default(false)
+  rating                             Int?
+  ratedAt                            DateTime?
+  serviceId                          Int?
+  serviceCode                        String?                    @db.VarChar(64)
+  serviceName                        String?                    @db.VarChar(150)
+  requestTypeId                      Int?
+  requestTypeCode                    String?                    @db.VarChar(64)
+  requestTypeName                    String?                    @db.VarChar(150)
+  supportTeamId                      Int?
+  supportTeamCode                    String?                    @db.VarChar(64)
+  supportTeamName                    String?                    @db.VarChar(150)
+  queueId                            Int?
+  queueCode                          String?                    @db.VarChar(64)
+  queueName                          String?                    @db.VarChar(150)
+  ownerUserId                        Int?
+  organizationId                     Int?
+  partyType                          PartyType?
+  partyKeyHash                       String?                    @db.Char(64)
+  normalizedRootCauseId              Int?
+  normalizedRootCauseCode            String?                    @db.VarChar(64)
+  normalizedRootCauseName            String?                    @db.VarChar(150)
+  incidentKey                        String?                    @db.VarChar(64)
+  priorityAtCreation                 SupportPriority?
+  priorityAtResolution               SupportPriority?
+  channel                            String?                    @db.VarChar(32)
+  slaPolicyCode                      String?                    @db.VarChar(64)
+  slaPolicyVersion                   Int?
+  legacyImported                     Boolean                    @default(false)
+  dataQualityStatus                  ReportingDataQualityStatus @default(INCOMPLETE)
+  exclusionReason                    String?                    @db.VarChar(100)
+  createdAt                          DateTime                   @default(now())
+  updatedAt                          DateTime                   @updatedAt
+  ticket                             Ticket                     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  definition                         KpiDefinitionVersion       @relation(fields: [definitionVersion], references: [version], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([ticketCreatedAt, dataQualityStatus])
+  @@index([firstHumanPublicResponseAt])
+  @@index([firstResolvedAt])
+  @@index([firstClosedAt, reopenedWithinWindow])
+  @@index([lastClosedAt, reopenedWithinWindow])
+  @@index([fcrStatus, fcrMaturesAt])
+  @@index([firstResponseSlaState, resolutionSlaState])
+  @@index([firstResponseDueAt, firstResponseSlaState], map: "TicketReportingFact_first_response_due_state_idx")
+  @@index([resolutionDueAt, resolutionSlaState], map: "TicketReportingFact_resolution_due_state_idx")
+  @@index([serviceId, requestTypeId, ticketCreatedAt])
+  @@index([supportTeamId, queueId, ticketCreatedAt])
+  @@index([ownerUserId, ticketCreatedAt])
+  @@index([organizationId, ticketCreatedAt])
+  @@index([normalizedRootCauseId, ticketCreatedAt], map: "TicketReportingFact_root_cause_created_idx")
+  @@index([incidentKey, ticketCreatedAt])
+  @@index([partyKeyHash, ticketCreatedAt])
+  @@index([rating, ratedAt])
+}
+
+model ReportingProcessedEvent {
+  eventId           String                          @id @db.Char(36)
+  outboxEventId     BigInt?                         @unique
+  aggregateType     String                          @db.VarChar(64)
+  aggregateId       String                          @db.VarChar(191)
+  aggregateVersion  Int?
+  eventType         String                          @db.VarChar(100)
+  occurredAt        DateTime
+  processedAt       DateTime                        @default(now())
+  definitionVersion String                          @db.VarChar(32)
+  outcome           ReportingEventProcessingOutcome
+  reasonCode        String?                         @db.VarChar(100)
+  definition        KpiDefinitionVersion            @relation(fields: [definitionVersion], references: [version], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([eventType, occurredAt])
+  @@index([aggregateType, aggregateId, aggregateVersion], map: "ReportingProcessedEvent_aggregate_version_idx")
+  @@index([processedAt])
+}
+
+model ReportingProjectionCheckpoint {
+  consumerName        String                    @id @db.VarChar(100)
+  definitionVersion   String                    @db.VarChar(32)
+  status              ReportingProjectionStatus @default(HEALTHY)
+  lastOutboxEventId   BigInt?
+  lastEventId         String?                   @db.Char(36)
+  lastEventOccurredAt DateTime?
+  lastProcessedAt     DateTime?
+  rebuildStartedAt    DateTime?
+  rebuildCompletedAt  DateTime?
+  failureCount        Int                       @default(0)
+  lastErrorCode       String?                   @db.VarChar(100)
+  leaseToken          String?                   @unique @db.Char(36)
+  leaseExpiresAt      DateTime?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  definition          KpiDefinitionVersion      @relation(fields: [definitionVersion], references: [version], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([status, lastProcessedAt])
+  @@index([leaseExpiresAt])
+}
+
+model SupportJourney {
+  id                            String                   @id @db.Char(36)
+  definitionVersion             String                   @db.VarChar(32)
+  partyKeyHash                  String                   @db.Char(64)
+  organizationId                Int?
+  serviceId                     Int?
+  serviceCode                   String?                  @db.VarChar(64)
+  requestTypeId                 Int?
+  requestTypeCode               String?                  @db.VarChar(64)
+  supportTeamId                 Int?
+  channel                       String                   @db.VarChar(32)
+  status                        SupportJourneyStatus     @default(STARTED)
+  contentType                   String?                  @db.VarChar(32)
+  contentReference              String?                  @db.VarChar(191)
+  customerQuestion              String?                  @db.VarChar(500)
+  contentIsPublicApprovedActive Boolean                  @default(false)
+  knowledgeArticleVersionId     BigInt?
+  startCommandKeyHash           String?                  @unique @db.Char(64)
+  startPayloadHash              String?                  @db.Char(64)
+  confirmationCommandKeyHash    String?                  @unique @db.Char(64)
+  startedAt                     DateTime
+  contentShownAt                DateTime?
+  confirmedResolvedAt           DateTime?
+  conversionDeadlineAt          DateTime?
+  humanInterventionAt           DateTime?
+  convertedTicketId             Int?
+  outcomeFinalizedAt            DateTime?
+  exclusionReason               String?                  @db.VarChar(100)
+  createdAt                     DateTime                 @default(now())
+  updatedAt                     DateTime                 @updatedAt
+  convertedTicket               Ticket?                  @relation("SupportJourneyConvertedTicket", fields: [convertedTicketId], references: [id], onDelete: SetNull)
+  definition                    KpiDefinitionVersion     @relation(fields: [definitionVersion], references: [version], onDelete: Restrict, onUpdate: Cascade)
+  knowledgeArticleVersion       KnowledgeArticleVersion? @relation(fields: [knowledgeArticleVersionId], references: [id], onDelete: Restrict)
+  messages                      SupportJourneyMessage[]
+
+  @@index([startedAt, status])
+  @@index([status, conversionDeadlineAt])
+  @@index([partyKeyHash, startedAt])
+  @@index([organizationId, startedAt])
+  @@index([serviceId, requestTypeId, startedAt])
+  @@index([supportTeamId, startedAt])
+  @@index([convertedTicketId])
+  @@index([knowledgeArticleVersionId, startedAt])
+}
+
+model SupportJourneyMessage {
+  id        BigInt                      @id @default(autoincrement())
+  journeyId String                      @db.Char(36)
+  author    SupportJourneyMessageAuthor
+  kind      SupportJourneyMessageKind
+  body      String                      @db.Text
+  createdAt DateTime                    @default(now())
+  journey   SupportJourney              @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@index([journeyId, createdAt, id])
+}
+
+model SupportIncident {
+  id                Int                     @id @default(autoincrement())
+  incidentKey       String                  @unique @db.VarChar(64)
+  title             String                  @db.VarChar(200)
+  description       String                  @db.Text
+  sourceType        SupportIncidentSource   @default(MANUAL)
+  sourceReference   String?                 @db.VarChar(191)
+  status            SupportIncidentStatus   @default(DETECTED)
+  severity          SupportIncidentSeverity @default(MEDIUM)
+  requestTypeId     Int?
+  serviceCode       String?                 @db.VarChar(64)
+  ownerTeamId       Int?
+  createdByUserId   Int?
+  initialNotice     String?                 @db.Text
+  initialNoticeAt   DateTime?
+  resolutionSummary String?                 @db.Text
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  detectedAt        DateTime                @default(now())
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  impacts           SupportIncidentImpact[]
+  ticketLinks       SupportIncidentTicket[]
+
+  @@index([status, detectedAt])
+  @@index([requestTypeId, status])
+  @@index([sourceType, sourceReference])
+}
+
+model SupportIncidentImpact {
+  id             Int             @id @default(autoincrement())
+  incidentId     Int
+  partyId        Int
+  organizationId Int?
+  referenceType  String?         @db.VarChar(64)
+  referenceKey   String?         @db.VarChar(191)
+  displayLabel   String?         @db.VarChar(255)
+  notifiedAt     DateTime?
+  acknowledgedAt DateTime?
+  createdAt      DateTime        @default(now())
+  incident       SupportIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, partyId, referenceType, referenceKey], map: "SupportIncidentImpact_scope_key")
+  @@index([partyId, incidentId])
+  @@index([organizationId, incidentId])
+}
+
+model SupportIncidentTicket {
+  id         Int             @id @default(autoincrement())
+  incidentId Int
+  ticketId   Int
+  linkedAt   DateTime        @default(now())
+  incident   SupportIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  ticket     Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([incidentId, ticketId])
+  @@index([ticketId])
+}
+
+model OrganizationServicePlan {
+  id                   Int       @id @default(autoincrement())
+  organizationId       Int
+  contractReferenceKey String    @db.VarChar(191)
+  requestTypeId        Int?
+  name                 String    @db.VarChar(150)
+  firstResponseMinutes Int
+  resolutionMinutes    Int
+  accountManagerUserId Int?
+  validFrom            DateTime
+  validTo              DateTime?
+  status               String    @default("ACTIVE") @db.VarChar(20)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  tickets              Ticket[]
+
+  @@unique([organizationId, contractReferenceKey, requestTypeId], map: "OrganizationServicePlan_scope_key")
+  @@index([organizationId, status, validFrom, validTo], map: "OrgServicePlan_org_status_valid_idx")
+  @@index([accountManagerUserId, status], map: "OrgServicePlan_manager_status_idx")
+}
+
+model TicketAccountReview {
+  id                   Int                 @id @default(autoincrement())
+  ticketId             Int                 @unique
+  accountManagerUserId Int
+  status               AccountReviewStatus @default(PENDING)
+  requestedAt          DateTime            @default(now())
+  decidedAt            DateTime?
+  decisionNote         String?             @db.Text
+  ticket               Ticket              @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([accountManagerUserId, status, requestedAt])
+}
+
+model TransactionVolumeDaily {
+  id                         BigInt                    @id @default(autoincrement())
+  providerCode               String                    @db.VarChar(64)
+  transactionType            String                    @db.VarChar(64)
+  localDate                  DateTime                  @db.Date
+  bucketStartedAt            DateTime
+  bucketEndedAt              DateTime
+  timeZone                   String                    @default("Asia/Tehran") @db.VarChar(64)
+  scopeType                  ReportingTransactionScope
+  scopeKey                   String                    @db.VarChar(191)
+  organizationId             Int?
+  successfulTransactionCount BigInt
+  totalTransactionCount      BigInt?
+  sourceVersion              String                    @db.VarChar(64)
+  sourceChecksum             String                    @db.Char(64)
+  status                     TransactionVolumeStatus   @default(PROVISIONAL)
+  importedAt                 DateTime                  @default(now())
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
+
+  @@unique([providerCode, transactionType, localDate, scopeType, scopeKey], map: "TransactionVolumeDaily_scope_bucket_key")
+  @@index([transactionType, localDate, status])
+  @@index([organizationId, transactionType, localDate], map: "TransactionVolumeDaily_org_type_date_idx")
+  @@index([status, importedAt])
+}
+
+model ReportingRootCauseDimension {
+  id          Int                      @id @default(autoincrement())
+  code        String                   @unique @db.VarChar(64)
+  name        String                   @db.VarChar(150)
+  serviceCode String?                  @db.VarChar(64)
+  status      CatalogRecordStatus      @default(ACTIVE)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  signals     RecurringProblemSignal[]
+  tickets     Ticket[]
+
+  @@index([serviceCode, status])
+}
+
+model RecurringProblemSignal {
+  id                       BigInt                       @id @default(autoincrement())
+  signalKey                String                       @unique @db.Char(64)
+  definitionVersion        String                       @db.VarChar(32)
+  windowStartedAt          DateTime
+  windowEndedAt            DateTime
+  baselineStartedAt        DateTime?
+  baselineEndedAt          DateTime?
+  serviceId                Int?
+  serviceCode              String?                      @db.VarChar(64)
+  serviceName              String?                      @db.VarChar(150)
+  requestTypeId            Int?
+  requestTypeCode          String?                      @db.VarChar(64)
+  requestTypeName          String?                      @db.VarChar(150)
+  normalizedRootCauseId    Int?
+  incidentKey              String?                      @db.VarChar(64)
+  ticketCount              Int
+  distinctPartyCount       Int
+  eligibleCauseTicketCount Int
+  baselineWeeklyAverage    Decimal?                     @db.Decimal(12, 4)
+  growthPercent            Decimal?                     @db.Decimal(9, 2)
+  status                   RecurringProblemSignalStatus
+  generatedAt              DateTime
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
+  normalizedRootCause      ReportingRootCauseDimension? @relation(fields: [normalizedRootCauseId], references: [id], onDelete: SetNull)
+  definition               KpiDefinitionVersion         @relation(fields: [definitionVersion], references: [version], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([windowStartedAt, windowEndedAt, status])
+  @@index([serviceId, requestTypeId, windowEndedAt])
+  @@index([normalizedRootCauseId, windowEndedAt])
+  @@index([incidentKey, windowEndedAt])
 }
 
 model TicketReply {
-  id          Int             @id @default(autoincrement())
+  id          Int                @id @default(autoincrement())
   ticketId    Int
   senderType  SenderType
   senderName  String
-  message     String          @db.Text
+  message     String             @db.Text
   rating      Int?
-  createdAt   DateTime        @default(now())
-  ticket      Ticket          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  createdAt   DateTime           @default(now())
+  ticket      Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   attachments TicketAttachment[]
 }
 
 model TicketAttachment {
-  id        Int         @id @default(autoincrement())
-  ticketId  Int?
-  replyId   Int?
-  fileName  String
-  fileSize  Int
-  fileType  String
-  fileUrl   String
-  createdAt DateTime    @default(now())
-  ticket    Ticket?     @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  reply     TicketReply? @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  id         Int            @id @default(autoincrement())
+  ticketId   Int?
+  replyId    Int?
+  messageId  BigInt?
+  fileName   String
+  fileSize   Int
+  fileType   String
+  fileUrl    String?
+  storageKey String?        @unique
+  checksum   String?        @db.Char(64)
+  createdAt  DateTime       @default(now())
+  ticket     Ticket?        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  reply      TicketReply?   @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  message    TicketMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([replyId])
+  @@index([messageId])
+}
+
+model PendingUpload {
+  id         String              @id @db.Char(36)
+  uploaderId Int
+  storageKey String              @unique
+  fileName   String
+  fileSize   Int
+  fileType   String
+  checksum   String              @db.Char(64)
+  status     PendingUploadStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+  expiresAt  DateTime
+  uploader   User                @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([uploaderId, expiresAt])
+  @@index([expiresAt])
+}
+
+enum PendingUploadStatus {
+  PENDING
+  DELETING
+}
+
+model AttachmentDeletionJob {
+  id              Int      @id @default(autoincrement())
+  objectReference String   @unique
+  attempts        Int      @default(0)
+  lastError       String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model PredefinedMessage {
-  id              Int             @id @default(autoincrement())
-  title           String          @db.VarChar(100)
-  content         String          @db.Text
-  shortCode       String          @unique @db.VarChar(50)
+  id              Int            @id @default(autoincrement())
+  title           String         @db.VarChar(100)
+  content         String         @db.Text
+  shortCode       String         @unique @db.VarChar(50)
   subDepartmentId Int?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  subDepartment   SubDepartment?  @relation(fields: [subDepartmentId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  subDepartment   SubDepartment? @relation(fields: [subDepartmentId], references: [id], onDelete: SetNull)
 }
 
 model Notification {
-  id            Int         @id @default(autoincrement())
+  id            Int           @id @default(autoincrement())
   ticketId      Int
   userId        Int?
   recipientType RecipientType
   message       String
-  isRead        Boolean     @default(false)
-  createdAt     DateTime    @default(now())
-  ticket        Ticket      @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  user          User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  isRead        Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  ticket        Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([recipientType, userId, isRead, createdAt])
 }
 
 enum TicketStatus {
   OPEN
   IN_PROGRESS
   CLOSED
+}
+
+enum TicketLifecycleStatus {
+  NEW
+  UNASSIGNED
+  IN_PROGRESS
+  INTERNAL_REFERRAL
+  WAITING_INTERNAL
+  WAITING_USER
+  RESOLVED
+  CLOSED
+  REOPENED
+  CLOSED_LEGACY
+}
+
+enum TicketMessageVisibility {
+  PUBLIC
+  INTERNAL
+}
+
+enum TicketMessageAuthorType {
+  CUSTOMER
+  STAFF
+  SYSTEM
+}
+
+enum TicketMessageSource {
+  NATIVE
+  LEGACY_TICKET
+  LEGACY_REPLY
+}
+
+enum TicketEventVisibility {
+  PUBLIC
+  INTERNAL
+}
+
+enum TicketEventActorType {
+  USER
+  STAFF
+  SYSTEM
+}
+
+enum TicketEventSourceType {
+  HUMAN
+  AUTOMATION
+  MIGRATION
+}
+
+enum TicketBusinessReferenceVerification {
+  VERIFIED
+  UNVERIFIED
+  LEGACY
+}
+
+enum TicketCommandReceiptStatus {
+  IN_PROGRESS
+  SUCCEEDED
+}
+
+enum TicketWorkItemStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum TicketResolutionOutcome {
+  PENDING
+  CONFIRMED
+  REJECTED
+  AUTO_CLOSED
+}
+
+enum SupportIncidentSource {
+  MANUAL
+  RECURRING_SIGNAL
+  EXTERNAL_MONITOR
+}
+
+enum SupportIncidentStatus {
+  DETECTED
+  INVESTIGATING
+  MITIGATED
+  RESOLVED
+  CLOSED
+}
+
+enum SupportIncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AccountReviewStatus {
+  PENDING
+  APPROVED
+  CHANGES_REQUESTED
 }
 
 enum SenderType {
@@ -138,17 +975,807 @@ enum UserRole {
 }
 
 model User {
-  id            Int             @id @default(autoincrement())
-  firstName     String
-  lastName      String
-  nationalCode  String          @unique
-  mobile        String          @unique
-  passwordHash  String
-  role          UserRole        @default(USER)
-  email         String?
-  birthday      String?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  tickets       Ticket[]
-  notifications Notification[]
+  id                        Int                         @id @default(autoincrement())
+  firstName                 String
+  lastName                  String
+  nationalCode              String                      @unique
+  mobile                    String                      @unique
+  passwordHash              String
+  role                      UserRole                    @default(USER)
+  email                     String?
+  birthday                  String?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  tickets                   Ticket[]                    @relation("LegacyTicketUser")
+  createdTickets            Ticket[]                    @relation("TicketCreatedBy")
+  ownedTickets              Ticket[]                    @relation("TicketOwner")
+  ticketMessages            TicketMessage[]             @relation("TicketMessageActor")
+  ticketEvents              TicketEvent[]               @relation("TicketEventActor")
+  ticketAssignmentsOwned    TicketAssignment[]          @relation("TicketAssignmentOwner")
+  ticketAssignmentsMade     TicketAssignment[]          @relation("TicketAssignmentActor")
+  ticketCommandReceipts     TicketCommandReceipt[]
+  ticketWorkItemsAssigned   TicketWorkItem[]            @relation("TicketWorkItemAssignee")
+  ticketWorkItemsRequested  TicketWorkItem[]            @relation("TicketWorkItemRequester")
+  mergedTickets             Ticket[]                    @relation("TicketMergedBy")
+  routingDecisions          RoutingDecision[]           @relation("RoutingDecisionActor")
+  notifications             Notification[]
+  pendingUploads            PendingUpload[]
+  sessions                  Session[]
+  auditEvents               AuditEvent[]                @relation("AuditActor")
+  personProfile             PersonProfile?
+  organizationMemberships   OrganizationMembership[]
+  roleAssignments           UserRoleAssignment[]
+  accessRequestsCreated     OrganizationAccessRequest[] @relation("AccessRequestRequester")
+  accessRequestsTargeted    OrganizationAccessRequest[] @relation("AccessRequestTarget")
+  accessRequestsDecided     OrganizationAccessRequest[] @relation("AccessRequestDecider")
+  createdKnowledgeArticles  KnowledgeArticle[]          @relation("KnowledgeArticleCreator")
+  approvedKnowledgeVersions KnowledgeArticleVersion[]   @relation("KnowledgeVersionApprover")
+}
+
+model Session {
+  id                String    @id @db.Char(36)
+  userId            Int
+  expiresAt         DateTime
+  absoluteExpiresAt DateTime
+  revokedAt         DateTime?
+  activePartyId     Int?
+  lastSeenAt        DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeParty       Party?    @relation("SessionActiveParty", fields: [activePartyId], references: [id], onDelete: SetNull)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([expiresAt])
+  @@index([absoluteExpiresAt])
+  @@index([activePartyId])
+}
+
+model RateLimitBucket {
+  scope       String   @db.VarChar(64)
+  keyHash     String   @db.Char(64)
+  windowStart DateTime
+  count       Int      @default(1)
+  expiresAt   DateTime
+
+  @@id([scope, keyHash, windowStart])
+  @@index([expiresAt])
+}
+
+model AuditEvent {
+  id             BigInt        @id @default(autoincrement())
+  actorUserId    Int?
+  activePartyId  Int?
+  organizationId Int?
+  sessionId      String?       @db.Char(36)
+  action         String        @db.VarChar(100)
+  outcome        AuditOutcome
+  targetType     String?       @db.VarChar(50)
+  targetId       String?       @db.VarChar(100)
+  sourceHash     String?       @db.Char(64)
+  requestId      String        @db.Char(36)
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  actor          User?         @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  activeParty    Party?        @relation("AuditActiveParty", fields: [activePartyId], references: [id], onDelete: SetNull)
+  organization   Organization? @relation("AuditOrganization", fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([activePartyId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+enum AuditOutcome {
+  SUCCESS
+  DENIED
+  FAILURE
+}
+
+model Party {
+  id              Int                    @id @default(autoincrement())
+  type            PartyType
+  displayName     String                 @db.VarChar(200)
+  status          PartyStatus            @default(ACTIVE)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  personProfile   PersonProfile?
+  organization    Organization?
+  activeSessions  Session[]              @relation("SessionActiveParty")
+  auditEvents     AuditEvent[]           @relation("AuditActiveParty")
+  tickets         Ticket[]
+  ticketMessages  TicketMessage[]        @relation("TicketMessageParty")
+  commandReceipts TicketCommandReceipt[]
+
+  @@index([type, status])
+}
+
+model PersonProfile {
+  id        Int      @id @default(autoincrement())
+  partyId   Int      @unique
+  userId    Int      @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  party     Party    @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model Organization {
+  id                       Int                         @id @default(autoincrement())
+  partyId                  Int                         @unique
+  legalName                String                      @db.VarChar(200)
+  nationalId               String?                     @unique @db.VarChar(20)
+  status                   OrganizationStatus          @default(ACTIVE)
+  createdAt                DateTime                    @default(now())
+  updatedAt                DateTime                    @updatedAt
+  party                    Party                       @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  units                    OrganizationUnit[]
+  memberships              OrganizationMembership[]
+  accessRequests           OrganizationAccessRequest[]
+  auditEvents              AuditEvent[]                @relation("AuditOrganization")
+  tickets                  Ticket[]
+  ticketBusinessReferences TicketBusinessReference[]
+
+  @@index([status, legalName])
+}
+
+model OrganizationUnit {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  name           String       @db.VarChar(150)
+  code           String       @db.VarChar(64)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, code])
+  @@index([organizationId, name])
+}
+
+model OrganizationMembership {
+  id             Int                           @id @default(autoincrement())
+  organizationId Int
+  userId         Int
+  role           OrganizationMembershipRole
+  status         MembershipStatus              @default(PENDING)
+  validFrom      DateTime                      @default(now())
+  validTo        DateTime?
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+  organization   Organization                  @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user           User                          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  scopes         OrganizationMembershipScope[]
+
+  @@unique([organizationId, userId])
+  @@index([userId, status, validFrom, validTo])
+  @@index([organizationId, role, status])
+}
+
+model OrganizationMembershipScope {
+  id           Int                    @id @default(autoincrement())
+  membershipId Int
+  type         OrganizationScopeType
+  scopeKey     String                 @db.VarChar(191)
+  createdAt    DateTime               @default(now())
+  membership   OrganizationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, type, scopeKey])
+  @@index([type, scopeKey])
+}
+
+model Role {
+  id          Int                  @id @default(autoincrement())
+  key         String               @unique @db.VarChar(64)
+  name        String               @db.VarChar(100)
+  kind        RoleKind
+  isSystem    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  permissions RolePermission[]
+  assignments UserRoleAssignment[]
+}
+
+model Permission {
+  id          Int              @id @default(autoincrement())
+  key         String           @unique @db.VarChar(100)
+  description String?          @db.VarChar(255)
+  createdAt   DateTime         @default(now())
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRoleAssignment {
+  id            Int                     @id @default(autoincrement())
+  userId        Int
+  roleId        Int
+  supportTeamId Int?
+  scopeType     RoleAssignmentScopeType @default(GLOBAL)
+  scopeKey      String                  @default("*") @db.VarChar(191)
+  status        RoleAssignmentStatus    @default(ACTIVE)
+  validFrom     DateTime                @default(now())
+  validTo       DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role          Role                    @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  supportTeam   SupportTeam?            @relation(fields: [supportTeamId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, roleId, scopeType, scopeKey])
+  @@index([userId, status, validFrom, validTo])
+  @@index([roleId, scopeType, scopeKey, status])
+  @@index([supportTeamId, status, validFrom, validTo])
+}
+
+model SupportService {
+  id                Int                           @id @default(autoincrement())
+  code              String                        @unique @db.VarChar(64)
+  name              String                        @db.VarChar(150)
+  description       String?                       @db.VarChar(500)
+  status            CatalogRecordStatus           @default(ACTIVE)
+  sortOrder         Int                           @default(0)
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+  requestTypes      SupportRequestType[]
+  legacyMappings    LegacySupportCatalogMapping[]
+  knowledgeArticles KnowledgeArticle[]
+
+  @@index([status, sortOrder, name])
+}
+
+model SupportRequestType {
+  id                      Int                           @id @default(autoincrement())
+  serviceId               Int
+  code                    String                        @unique @db.VarChar(64)
+  name                    String                        @db.VarChar(150)
+  description             String?                       @db.VarChar(500)
+  businessSubjectType     String?                       @db.VarChar(64)
+  requiresBusinessSubject Boolean                       @default(false)
+  requiresRootCause       Boolean                       @default(false)
+  status                  CatalogRecordStatus           @default(ACTIVE)
+  sortOrder               Int                           @default(0)
+  createdAt               DateTime                      @default(now())
+  updatedAt               DateTime                      @updatedAt
+  service                 SupportService                @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  routes                  SupportCatalogRoute[]
+  legacyMappings          LegacySupportCatalogMapping[]
+  tickets                 Ticket[]
+  routingDecisions        RoutingDecision[]
+  knowledgeArticles       KnowledgeArticle[]
+
+  @@index([serviceId, status, sortOrder, name])
+}
+
+model SupportTeam {
+  id                Int                  @id @default(autoincrement())
+  code              String               @unique @db.VarChar(64)
+  name              String               @db.VarChar(150)
+  description       String?              @db.VarChar(500)
+  status            SupportTeamStatus    @default(ACTIVE)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  queues            SupportQueue[]
+  roleAssignments   UserRoleAssignment[]
+  tickets           Ticket[]
+  ticketAssignments TicketAssignment[]
+  routingDecisions  RoutingDecision[]
+  workItems         TicketWorkItem[]
+
+  @@index([status, name])
+}
+
+model SupportQueue {
+  id                Int                   @id @default(autoincrement())
+  teamId            Int
+  code              String                @unique @db.VarChar(64)
+  name              String                @db.VarChar(150)
+  description       String?               @db.VarChar(500)
+  status            SupportQueueStatus    @default(ACTIVE)
+  isDefault         Boolean               @default(false)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  team              SupportTeam           @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  routes            SupportCatalogRoute[]
+  tickets           Ticket[]
+  ticketAssignments TicketAssignment[]
+  routingDecisions  RoutingDecision[]
+  workItems         TicketWorkItem[]
+
+  @@unique([teamId, name])
+  @@index([teamId, status, name])
+}
+
+model SupportCatalogRoute {
+  id               Int                       @id @default(autoincrement())
+  requestTypeId    Int
+  queueId          Int
+  slaPolicyId      Int?
+  version          Int
+  defaultPriority  SupportPriority
+  status           SupportCatalogRouteStatus @default(ACTIVE)
+  activeKey        String?                   @unique @db.VarChar(64)
+  effectiveFrom    DateTime                  @default(now())
+  effectiveTo      DateTime?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  requestType      SupportRequestType        @relation(fields: [requestTypeId], references: [id], onDelete: Restrict)
+  queue            SupportQueue              @relation(fields: [queueId], references: [id], onDelete: Restrict)
+  slaPolicy        SlaPolicy?                @relation(fields: [slaPolicyId], references: [id], onDelete: Restrict)
+  routingDecisions RoutingDecision[]
+
+  @@unique([requestTypeId, version])
+  @@index([queueId, status])
+  @@index([slaPolicyId])
+  @@index([requestTypeId, status, effectiveFrom, effectiveTo], map: "SupportCatalogRoute_request_status_effective_idx")
+}
+
+model SlaCalendar {
+  id             Int                 @id @default(autoincrement())
+  code           String              @db.VarChar(64)
+  version        Int
+  name           String              @db.VarChar(150)
+  timeZone       String              @db.VarChar(64)
+  weeklySchedule Json
+  status         SlaDefinitionStatus @default(ACTIVE)
+  activeKey      String?             @unique @db.VarChar(64)
+  effectiveFrom  DateTime            @default(now())
+  effectiveTo    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  holidays       SlaHoliday[]
+  policies       SlaPolicy[]
+  ticketSlas     TicketSla[]
+
+  @@unique([code, version])
+  @@index([status, effectiveFrom, effectiveTo])
+}
+
+model SlaHoliday {
+  id         Int         @id @default(autoincrement())
+  calendarId Int
+  localDate  DateTime    @db.Date
+  name       String      @db.VarChar(150)
+  createdAt  DateTime    @default(now())
+  calendar   SlaCalendar @relation(fields: [calendarId], references: [id], onDelete: Restrict)
+
+  @@unique([calendarId, localDate])
+  @@index([localDate])
+}
+
+model SlaPolicy {
+  id                   Int                   @id @default(autoincrement())
+  code                 String                @db.VarChar(64)
+  version              Int
+  name                 String                @db.VarChar(150)
+  priority             SupportPriority
+  clockType            SlaClockType
+  calendarId           Int?
+  firstResponseMinutes Int
+  resolutionMinutes    Int
+  warning70Percent     Int                   @default(70)
+  warning90Percent     Int                   @default(90)
+  breachPercent        Int                   @default(100)
+  managerPercent       Int                   @default(125)
+  status               SlaDefinitionStatus   @default(ACTIVE)
+  activeKey            String?               @unique @db.VarChar(64)
+  effectiveFrom        DateTime              @default(now())
+  effectiveTo          DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  calendar             SlaCalendar?          @relation(fields: [calendarId], references: [id], onDelete: Restrict)
+  routes               SupportCatalogRoute[]
+  ticketSlas           TicketSla[]
+  routingDecisions     RoutingDecision[]
+
+  @@unique([code, version])
+  @@index([priority, status, effectiveFrom, effectiveTo], map: "SlaPolicy_priority_status_effective_idx")
+  @@index([calendarId])
+}
+
+model TicketSla {
+  id                        BigInt             @id @default(autoincrement())
+  ticketId                  Int                @unique
+  policyId                  Int
+  calendarId                Int?
+  policyCode                String             @db.VarChar(64)
+  policyVersion             Int
+  calendarCode              String?            @db.VarChar(64)
+  calendarVersion           Int?
+  clockType                 SlaClockType
+  firstResponseMinutes      Int
+  resolutionMinutes         Int
+  enforcementMode           SlaEnforcementMode @default(OBSERVE_ONLY)
+  firstResponseState        SlaTargetState     @default(PENDING)
+  resolutionState           SlaTargetState     @default(PENDING)
+  firstResponseWarningLevel SlaWarningLevel    @default(NONE)
+  resolutionWarningLevel    SlaWarningLevel    @default(NONE)
+  resolutionEscalationLevel SlaEscalationLevel @default(NONE)
+  startedAt                 DateTime
+  resolutionCycleNumber     Int                @default(1)
+  resolutionCycleStartedAt  DateTime
+  firstResponseWarning70At  DateTime
+  firstResponseWarning90At  DateTime
+  firstResponseDueAt        DateTime
+  resolutionWarning70At     DateTime
+  resolutionWarning90At     DateTime
+  resolutionDueAt           DateTime
+  resolutionManagerAt       DateTime
+  firstRespondedAt          DateTime?
+  resolvedAt                DateTime?
+  pausedAt                  DateTime?
+  totalPausedMilliseconds   BigInt             @default(0)
+  legacyImported            Boolean            @default(false)
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  ticket                    Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  policy                    SlaPolicy          @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  calendar                  SlaCalendar?       @relation(fields: [calendarId], references: [id], onDelete: Restrict)
+  pauses                    TicketSlaPause[]
+
+  @@index([firstResponseState, firstResponseDueAt])
+  @@index([resolutionState, resolutionDueAt])
+  @@index([resolutionEscalationLevel, resolutionManagerAt], map: "TicketSla_resolutionEscalation_manager_idx")
+  @@index([enforcementMode, legacyImported])
+}
+
+model TicketSlaPause {
+  id                   BigInt         @id @default(autoincrement())
+  ticketSlaId          BigInt
+  reason               SlaPauseReason
+  startedAt            DateTime
+  endedAt              DateTime?
+  durationMilliseconds BigInt?
+  activeKey            String?        @unique @db.VarChar(64)
+  createdAt            DateTime       @default(now())
+  ticketSla            TicketSla      @relation(fields: [ticketSlaId], references: [id], onDelete: Cascade)
+
+  @@index([ticketSlaId, startedAt])
+}
+
+model RoutingDecision {
+  id            BigInt                @id @default(autoincrement())
+  ticketId      Int
+  routeId       Int?
+  requestTypeId Int
+  supportTeamId Int
+  queueId       Int
+  slaPolicyId   Int?
+  actorUserId   Int?
+  source        RoutingDecisionSource
+  ruleCode      String                @db.VarChar(100)
+  ruleVersion   Int
+  routeVersion  Int
+  priority      SupportPriority
+  reason        String?               @db.VarChar(500)
+  inputSnapshot Json?
+  createdAt     DateTime              @default(now())
+  ticket        Ticket                @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  route         SupportCatalogRoute?  @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  requestType   SupportRequestType    @relation(fields: [requestTypeId], references: [id], onDelete: Restrict)
+  supportTeam   SupportTeam           @relation(fields: [supportTeamId], references: [id], onDelete: Restrict)
+  queue         SupportQueue          @relation(fields: [queueId], references: [id], onDelete: Restrict)
+  slaPolicy     SlaPolicy?            @relation(fields: [slaPolicyId], references: [id], onDelete: Restrict)
+  actorUser     User?                 @relation("RoutingDecisionActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([supportTeamId, queueId, createdAt], map: "RoutingDecision_team_queue_createdAt_idx")
+  @@index([slaPolicyId])
+}
+
+model LegacySupportCatalogMapping {
+  id                   Int                        @id @default(autoincrement())
+  sourceType           LegacyCatalogSourceType
+  legacyId             Int
+  departmentId         Int?
+  subDepartmentId      Int?
+  supportServiceId     Int?
+  supportRequestTypeId Int?
+  status               LegacyCatalogMappingStatus @default(PENDING)
+  reviewedAt           DateTime?
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+  department           Department?                @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  subDepartment        SubDepartment?             @relation(fields: [subDepartmentId], references: [id], onDelete: Restrict)
+  supportService       SupportService?            @relation(fields: [supportServiceId], references: [id], onDelete: Restrict)
+  supportRequestType   SupportRequestType?        @relation(fields: [supportRequestTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceType, legacyId])
+  @@index([status, sourceType])
+  @@index([supportServiceId])
+  @@index([supportRequestTypeId])
+}
+
+model OrganizationAccessRequest {
+  id             Int                              @id @default(autoincrement())
+  organizationId Int
+  requestedById  Int
+  targetUserId   Int
+  decidedById    Int?
+  requestType    OrganizationAccessRequestType
+  pendingKey     String?                          @unique @db.VarChar(191)
+  requestedRole  OrganizationMembershipRole?
+  status         AccessRequestStatus              @default(PENDING)
+  reason         String                           @db.VarChar(500)
+  decisionReason String?                          @db.VarChar(500)
+  decidedAt      DateTime?
+  createdAt      DateTime                         @default(now())
+  updatedAt      DateTime                         @updatedAt
+  organization   Organization                     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestedBy    User                             @relation("AccessRequestRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  targetUser     User                             @relation("AccessRequestTarget", fields: [targetUserId], references: [id], onDelete: Restrict)
+  decidedBy      User?                            @relation("AccessRequestDecider", fields: [decidedById], references: [id], onDelete: Restrict)
+  scopes         OrganizationAccessRequestScope[]
+
+  @@index([organizationId, status, createdAt])
+  @@index([targetUserId, status])
+  @@index([requestedById, createdAt])
+}
+
+model OrganizationAccessRequestScope {
+  id        Int                       @id @default(autoincrement())
+  requestId Int
+  type      OrganizationScopeType
+  scopeKey  String                    @db.VarChar(191)
+  request   OrganizationAccessRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, type, scopeKey])
+  @@index([type, scopeKey])
+}
+
+enum PartyType {
+  PERSON
+  ORGANIZATION
+}
+
+enum PartyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum OrganizationMembershipRole {
+  REPRESENTATIVE
+  MANAGER
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum OrganizationScopeType {
+  ORGANIZATION
+  BRANCH
+  CONTRACT
+  ASSET
+}
+
+enum RoleKind {
+  STAFF
+  SYSTEM
+}
+
+enum RoleAssignmentScopeType {
+  GLOBAL
+  SUPPORT_TEAM
+  ORGANIZATION
+}
+
+enum RoleAssignmentStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum OrganizationAccessRequestType {
+  ADD_MEMBERSHIP
+  CHANGE_ROLE
+  CHANGE_SCOPE
+  REVOKE_MEMBERSHIP
+}
+
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXECUTED
+}
+
+enum CatalogRecordStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SupportTeamStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SupportQueueStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SupportPriority {
+  CRITICAL
+  HIGH
+  NORMAL
+  LOW
+}
+
+enum SupportCatalogRouteStatus {
+  ACTIVE
+  RETIRED
+}
+
+enum LegacyCatalogSourceType {
+  DEPARTMENT
+  SUB_DEPARTMENT
+}
+
+enum LegacyCatalogMappingStatus {
+  PENDING
+  MAPPED
+  IGNORED
+  CONFLICT
+}
+
+enum SlaDefinitionStatus {
+  ACTIVE
+  RETIRED
+}
+
+enum SlaClockType {
+  CALENDAR
+  BUSINESS
+}
+
+enum SlaEnforcementMode {
+  OBSERVE_ONLY
+  ENFORCED
+}
+
+enum SlaTargetState {
+  PENDING
+  PAUSED
+  MET
+  BREACHED
+  NOT_APPLICABLE
+}
+
+enum SlaWarningLevel {
+  NONE
+  SEVENTY
+  NINETY
+}
+
+enum SlaEscalationLevel {
+  NONE
+  OWNER
+  OWNER_SUPERVISOR
+  SUPERVISOR
+  MANAGER
+}
+
+enum SlaPauseReason {
+  WAITING_USER
+}
+
+enum RoutingDecisionSource {
+  CATALOG
+  LEGACY_MAPPING
+  QUARANTINE
+  RECONCILIATION
+  MANUAL_OVERRIDE
+}
+
+enum OutboxDeliveryStatus {
+  PENDING
+  PROCESSING
+  RETRY
+  SUCCEEDED
+  DEAD_LETTER
+}
+
+enum ReportingDefinitionStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+enum ReportingFcrStatus {
+  PENDING_WINDOW
+  ACHIEVED
+  NOT_ACHIEVED
+  EXCLUDED
+}
+
+enum ReportingDataQualityStatus {
+  HEALTHY
+  INCOMPLETE
+  EXCLUDED
+}
+
+enum ReportingEventProcessingOutcome {
+  APPLIED
+  IGNORED
+}
+
+enum ReportingProjectionStatus {
+  HEALTHY
+  STALE
+  UNAVAILABLE
+  REBUILDING
+  FAILED
+}
+
+enum SupportJourneyStatus {
+  STARTED
+  CONTENT_SHOWN
+  CONFIRMED_RESOLVED
+  CONVERTED_TO_TICKET
+  UNKNOWN
+  EXCLUDED
+}
+
+enum SupportJourneyMessageAuthor {
+  CUSTOMER
+  SYSTEM
+}
+
+enum SupportJourneyMessageKind {
+  QUESTION
+  GUIDANCE
+  OUTCOME
+  HANDOFF
+}
+
+enum KnowledgeAudience {
+  PUBLIC
+  AUTHENTICATED
+  ORGANIZATION
+}
+
+enum KnowledgeArticleStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum KnowledgeApprovalStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+}
+
+enum ReportingTransactionScope {
+  GLOBAL
+  ORGANIZATION
+}
+
+enum TransactionVolumeStatus {
+  PROVISIONAL
+  VERIFIED
+  REJECTED
+}
+
+enum RecurringProblemSignalStatus {
+  RECURRING
+  NEW_SIGNAL
+  BELOW_THRESHOLD
+  INSUFFICIENT_DATA
 }

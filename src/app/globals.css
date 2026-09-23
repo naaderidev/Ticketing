@@ -41,6 +41,7 @@
 }
 
 :root {
+  --font-vazirmatn: "Vazirmatn Variable", Tahoma, sans-serif;
   --background: #F8FAFC;
   --foreground: #0F172A;
   --card: #FFFFFF;
@@ -125,6 +126,66 @@
 
 .rmdp-container.w-full .rmdp-input {
   width: 100% !important;
+}
+
+.ticketing-date-input {
+  width: 100% !important;
+  height: 2.5rem !important;
+  border: 1px solid var(--input) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  padding: 0.5rem 0.75rem !important;
+  font-family: var(--font-vazirmatn) !important;
+  font-size: 0.875rem !important;
+  text-align: right;
+  box-shadow: none !important;
+}
+
+.ticketing-date-input:focus {
+  border-color: var(--ring) !important;
+  outline: 2px solid color-mix(in srgb, var(--ring) 30%, transparent) !important;
+  outline-offset: 2px;
+}
+
+.ticketing-date-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ticketing-persian-calendar {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  font-family: var(--font-vazirmatn) !important;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 14%) !important;
+}
+
+.ticketing-persian-calendar .rmdp-header-values,
+.ticketing-persian-calendar .rmdp-week-day,
+.ticketing-persian-calendar .rmdp-day span {
+  color: var(--popover-foreground);
+}
+
+.ticketing-persian-calendar .rmdp-arrow {
+  border-color: var(--primary) !important;
+}
+
+.ticketing-persian-calendar .rmdp-day:not(.rmdp-disabled):not(.rmdp-day-hidden) span:hover {
+  background: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+}
+
+.ticketing-persian-calendar .rmdp-day.rmdp-selected span,
+.ticketing-persian-calendar .rmdp-day.rmdp-today span {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+
+.ticketing-persian-calendar .rmdp-day.rmdp-disabled span {
+  color: var(--muted-foreground) !important;
+  opacity: 0.45;
 }
 
 @keyframes accordion-down {

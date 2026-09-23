@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { labels, titles, descriptions, errors } from "@/lib/strings";
+import { labels, titles, descriptions } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
 import { DepartmentWithCount } from "@/types/shared";
 

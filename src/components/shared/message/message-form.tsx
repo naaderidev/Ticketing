@@ -200,6 +200,7 @@ export function MessageForm({
                 className="min-h-[200px]"
                 {...registerCreate("content")}
                 maxLength={MESSAGE_CONTENT_MAX}
+                showCharacterCount={false}
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{toPersianDigits((watchCreate("content") || "").length)} / {toPersianDigits(MESSAGE_CONTENT_MAX)}</span>
@@ -298,6 +299,7 @@ export function MessageForm({
                 className="min-h-[200px]"
                 {...registerEdit("content")}
                 maxLength={MESSAGE_CONTENT_MAX}
+                showCharacterCount={false}
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{toPersianDigits((watchEdit("content") || "").length)} / {toPersianDigits(MESSAGE_CONTENT_MAX)}</span>

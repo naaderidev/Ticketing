@@ -1,99 +1,79 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import { getUsers, createUser, updateUserRole } from "@/lib/user-service";
 import { errors } from "@/lib/strings";
-import { createUserSchema } from "@/lib/validations";
-import { getAuthUser } from "@/lib/auth";
+import { createUserSchema, updateUserRoleSchema } from "@/lib/validations";
+import { requireActiveRole } from "@/lib/api-authorization";
+import { handleApiError, parseJsonBody } from "@/lib/api-validation";
+import { AUTHENTICATED_MUTATION_LIMIT } from "@/lib/rate-limit";
+import { recordAuditEvent } from "@/lib/audit-log";
 
 export async function GET() {
   try {
-    const authUser = await getAuthUser();
-    if (!authUser) {
-      return NextResponse.json(
-        { error: "احراز هویت الزامی است" },
-        { status: 401 }
-      );
-    }
-    if (authUser.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "دسترسی غیرمجاز" },
-        { status: 403 }
-      );
-    }
+    const auth = await requireActiveRole("SYSTEM_ADMINISTRATOR");
+    if (!auth.authorized) return auth.response;
 
     const users = await getUsers();
-    return NextResponse.json(users);
+    return apiJsonResponse(users);
   } catch (error) {
-    console.error("Error fetching users:", error);
-    return NextResponse.json(
-      { error: errors.FETCH_USERS },
-      { status: 500 }
-    );
+    return handleApiError(error, errors.FETCH_USERS, "Error fetching users");
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const result = createUserSchema.safeParse(body);
-    if (!result.success) {
-      const firstError = result.error.issues[0]?.message || "داده‌های ورودی معتبر نیستند";
-      return NextResponse.json({ error: firstError }, { status: 400 });
-    }
-    const { confirmPassword: _, ...userData } = result.data;
-    const user = await createUser(userData);
-    return NextResponse.json(user, { status: 201 });
+    const auth = await requireActiveRole("SYSTEM_ADMINISTRATOR", {
+      rateLimit: AUTHENTICATED_MUTATION_LIMIT,
+    });
+    if (!auth.authorized) return auth.response;
+
+    const body = await parseJsonBody(request, createUserSchema);
+    if (!body.success) return body.response;
+    const user = await createUser({
+      firstName: body.data.firstName,
+      lastName: body.data.lastName,
+      nationalCode: body.data.nationalCode,
+      mobile: body.data.mobile,
+      password: body.data.password,
+      email: body.data.email,
+      birthday: body.data.birthday,
+    });
+    await recordAuditEvent({
+      request,
+      action: "ADMIN_USER_CREATE",
+      outcome: "SUCCESS",
+      actorUserId: auth.value.id,
+      sessionId: auth.value.sessionId,
+      targetType: "USER",
+      targetId: String(user.id),
+    });
+    return apiJsonResponse(user, { status: 201 });
   } catch (error) {
-    console.error("Error creating user:", error);
-    const message =
-      error instanceof Error ? error.message : errors.CREATE_USER;
-    const status = message.includes("الزامی")
-      ? 400
-      : message.includes("قبلاً")
-        ? 409
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.CREATE_USER, "Error creating user");
   }
 }
 
 export async function PATCH(request: Request) {
   try {
-    const authUser = await getAuthUser();
-    if (!authUser) {
-      return NextResponse.json(
-        { error: "احراز هویت الزامی است" },
-        { status: 401 }
-      );
-    }
-    if (authUser.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "دسترسی غیرمجاز" },
-        { status: 403 }
-      );
-    }
+    const auth = await requireActiveRole("SYSTEM_ADMINISTRATOR", {
+      rateLimit: AUTHENTICATED_MUTATION_LIMIT,
+    });
+    if (!auth.authorized) return auth.response;
 
-    const body = await request.json();
-    const { userId, role } = body;
-
-    if (!userId || !role) {
-      return NextResponse.json(
-        { error: "userId و role الزامی است" },
-        { status: 400 }
-      );
-    }
-
-    if (role !== "USER" && role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "نقش معتبر نیست" },
-        { status: 400 }
-      );
-    }
-
-    const updatedUser = await updateUserRole(Number(userId), role);
-    return NextResponse.json(updatedUser);
+    const body = await parseJsonBody(request, updateUserRoleSchema);
+    if (!body.success) return body.response;
+    const updatedUser = await updateUserRole(body.data.userId, body.data.role);
+    await recordAuditEvent({
+      request,
+      action: "ADMIN_USER_ROLE_UPDATE",
+      outcome: "SUCCESS",
+      actorUserId: auth.value.id,
+      sessionId: auth.value.sessionId,
+      targetType: "USER",
+      targetId: String(updatedUser.id),
+      metadata: { role: updatedUser.role },
+    });
+    return apiJsonResponse(updatedUser);
   } catch (error) {
-    console.error("Error updating user role:", error);
-    const message =
-      error instanceof Error ? error.message : "خطا در بروزرسانی نقش کاربر";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return handleApiError(error, "خطا در بروزرسانی نقش کاربر", "Error updating user role");
   }
 }

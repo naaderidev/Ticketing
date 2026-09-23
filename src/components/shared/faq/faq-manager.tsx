@@ -15,7 +15,7 @@ import { Plus } from "lucide-react";
 import { labels, buttons, errors, titles } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
 import { useFaqs, useCreateFaq, useUpdateFaq, useDeleteFaq, useReorderFaqs, useDepartments, useSubDepartments } from "@/hooks";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { faqSchema, FaqInput } from "@/lib/validations";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ export function FAQManager() {
     register: registerCreate,
     handleSubmit: handleSubmitCreate,
     watch: watchCreate,
+    control: createControl,
     setValue: setValueCreate,
     reset: resetCreate,
     formState: { errors: errorsCreate },
@@ -48,6 +49,10 @@ export function FAQManager() {
       departmentId: initialDeptId,
       subDepartmentId: initialSubDeptId,
     },
+  });
+  const createDepartmentId = useWatch({
+    control: createControl,
+    name: "departmentId",
   });
 
   const {
@@ -65,7 +70,7 @@ export function FAQManager() {
     filterDepartmentId ? Number.parseInt(filterDepartmentId) : 0
   );
   const { data: formSubDepartments = [] } = useSubDepartments(
-    watchCreate("departmentId") ? Number.parseInt(watchCreate("departmentId")) : 0
+    createDepartmentId ? Number.parseInt(createDepartmentId) : 0
   );
   const { data: faqs = [], isLoading } = useFaqs({
     departmentId: filterDepartmentId || undefined,

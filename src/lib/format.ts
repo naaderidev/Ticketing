@@ -1,9 +1,25 @@
-export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("fa-IR");
+import {
+  formatJalaliDate,
+  formatJalaliDateTime,
+  parseApiDate,
+  toPersianDateDigits,
+} from "@/lib/jalali-date";
+
+export function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return "—";
+  const date = parseApiDate(dateString);
+  return date ? toPersianDateDigits(formatJalaliDate(date)) : "—";
+}
+
+export function formatDateTime(dateString: string | null | undefined): string {
+  if (!dateString) return "—";
+  const date = parseApiDate(dateString);
+  return date ? toPersianDateDigits(formatJalaliDateTime(date)) : "—";
 }
 
 export function formatRelativeTime(dateString: string): string {
-  const date = new Date(dateString);
+  const date = parseApiDate(dateString);
+  if (!date) return "—";
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const minutes = Math.floor(diff / 60000);
@@ -23,6 +39,5 @@ export function formatFileSize(bytes: number): string {
 }
 
 export function toPersianDigits(input: string | number): string {
-  const persianDigits = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
-  return String(input).replace(/\d/g, (d) => persianDigits[parseInt(d)]);
+  return toPersianDateDigits(String(input));
 }

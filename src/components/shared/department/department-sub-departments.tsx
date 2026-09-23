@@ -22,8 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, FolderOpen, Building2, HelpCircle } from "lucide-react";
-import { labels, buttons, errors, descriptions } from "@/lib/strings";
+import { Pencil, Trash2, FolderOpen, HelpCircle } from "lucide-react";
+import { labels, buttons, descriptions } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
 import Link from "next/link";
 import { SubDepartmentWithCount } from "@/types/shared";

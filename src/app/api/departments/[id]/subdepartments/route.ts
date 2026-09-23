@@ -1,24 +1,29 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import {
   getSubDepartments,
   createSubDepartment,
 } from "@/lib/department-service";
 import { errors } from "@/lib/strings";
 import { subDepartmentSchema } from "@/lib/validations";
+import { requireAuthenticatedUser, requireGlobalPermission } from "@/lib/api-authorization";
+import { handleApiError, parseJsonBody, parsePositiveInteger } from "@/lib/api-validation";
+import { AUTHENTICATED_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuthenticatedUser();
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    const subDepartments = await getSubDepartments(parseInt(id));
-    return NextResponse.json(subDepartments);
+    const parsedId = parsePositiveInteger(id, "شناسه دپارتمان");
+    if (!parsedId.success) return parsedId.response;
+    const subDepartments = await getSubDepartments(parsedId.data);
+    return apiJsonResponse(subDepartments);
   } catch (error) {
-    return NextResponse.json(
-      { error: errors.FETCH_SUB_DEPARTMENTS },
-      { status: 500 }
-    );
+    return handleApiError(error, errors.FETCH_SUB_DEPARTMENTS, "Error fetching sub-departments");
   }
 }
 
@@ -27,25 +32,17 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireGlobalPermission("support.catalog.manage", { rateLimit: AUTHENTICATED_MUTATION_LIMIT });
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    const body = await request.json();
-    const result = subDepartmentSchema.safeParse(body);
-    if (!result.success) {
-      const firstError = result.error.issues[0]?.message || "داده‌های ورودی معتبر نیستند";
-      return NextResponse.json({ error: firstError }, { status: 400 });
-    }
-    const subDepartment = await createSubDepartment(parseInt(id), result.data.name);
-    return NextResponse.json(subDepartment, { status: 201 });
+    const parsedId = parsePositiveInteger(id, "شناسه دپارتمان");
+    if (!parsedId.success) return parsedId.response;
+    const body = await parseJsonBody(request, subDepartmentSchema);
+    if (!body.success) return body.response;
+    const subDepartment = await createSubDepartment(parsedId.data, body.data.name);
+    return apiJsonResponse(subDepartment, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : errors.CREATE_SUB_DEPARTMENT;
-    const status = message.includes("الزامی")
-      ? 400
-      : message.includes("یافت نشد")
-        ? 404
-        : message.includes("قبلاً")
-          ? 409
-          : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.CREATE_SUB_DEPARTMENT, "Error creating sub-department");
   }
 }

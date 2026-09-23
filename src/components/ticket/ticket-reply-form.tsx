@@ -13,20 +13,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Send, MessageSquareText } from "lucide-react";
-import { Attachment, PredefinedMessage, Reply } from "@/types/ticket";
+import { PendingAttachment, PredefinedMessage, Reply } from "@/types/ticket";
 import { FileUpload } from "@/components/shared/file-upload";
 import { UseMutationResult } from "@tanstack/react-query";
 import { labels, buttons, placeholders, misc } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
-import { useUser } from "@/contexts/user-context";
 
 interface AddReplyData {
   ticketId: string;
   data: {
-    senderType: "USER" | "ADMIN";
-    senderName: string;
     message: string;
-    attachments?: Attachment[];
+    attachments?: PendingAttachment[];
   };
 }
 
@@ -44,29 +41,17 @@ export const TicketReplyForm = React.memo(function TicketReplyForm({
   addReplyMutation,
 }: TicketReplyFormProps) {
   const [replyMessage, setReplyMessage] = useState("");
-  const [replyAttachments, setReplyAttachments] = useState<Attachment[]>([]);
+  const [replyAttachments, setReplyAttachments] = useState<PendingAttachment[]>([]);
   const [showShortcodes, setShowShortcodes] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedShortcode, setSelectedShortcode] = useState("");
-  const { user } = useUser();
-
   const handleReply = useCallback(() => {
     if (!replyMessage.trim()) return;
-
-    let senderName: string = labels.REPLY_SUPPORT;
-    let senderType: "USER" | "ADMIN" = "ADMIN";
-
-    if (!isAdmin) {
-      senderName = user ? `${user.firstName} ${user.lastName}` : labels.REPLY_USER;
-      senderType = "USER";
-    }
 
     addReplyMutation.mutate(
       {
         ticketId,
         data: {
-          senderType,
-          senderName,
           message: replyMessage.trim(),
           attachments: replyAttachments.length > 0 ? replyAttachments : undefined,
         },
@@ -78,7 +63,7 @@ export const TicketReplyForm = React.memo(function TicketReplyForm({
         },
       }
     );
-  }, [replyMessage, isAdmin, ticketId, replyAttachments, addReplyMutation, user]);
+  }, [replyMessage, ticketId, replyAttachments, addReplyMutation]);
 
   const handleInsertShortcode = useCallback((content: string) => {
     setReplyMessage((prev) => prev + content);
@@ -121,12 +106,14 @@ export const TicketReplyForm = React.memo(function TicketReplyForm({
     }
   }, []);
 
-  const handleUpload = useCallback((file: { fileName: string; fileSize: number; fileType: string; fileUrl: string }) => {
-    setReplyAttachments((prev) => [...prev, file as Attachment]);
+  const handleUpload = useCallback((file: PendingAttachment) => {
+    setReplyAttachments((prev) => [...prev, file]);
   }, []);
 
-  const handleRemove = useCallback((fileUrl: string) => {
-    setReplyAttachments((prev) => prev.filter((f) => f.fileUrl !== fileUrl));
+  const handleRemove = useCallback((uploadId: string) => {
+    setReplyAttachments((prev) =>
+      prev.filter((file) => file.uploadId !== uploadId)
+    );
   }, []);
 
   return (
@@ -215,6 +202,7 @@ export const TicketReplyForm = React.memo(function TicketReplyForm({
               value={replyMessage}
               onChange={handleTextareaChange}
               maxLength={1000}
+              showCharacterCount={false}
             />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>{toPersianDigits(replyMessage.length)} / ۱۰۰۰</span>

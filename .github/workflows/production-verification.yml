@@ -1,0 +1,103 @@
+name: Production Post-Deployment Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Full lowercase application release commit SHA
+        required: true
+        type: string
+      evidence_revision:
+        description: Full lowercase commit SHA containing approved Go-Live evidence
+        required: true
+        type: string
+      evidence_path:
+        description: Release-specific evidence path, for example release-evidence/<sha>.json
+        required: true
+        type: string
+      checkpoint:
+        description: Named hypercare checkpoint
+        required: true
+        type: choice
+        options:
+          - initial
+          - midpoint
+          - closure
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-verification-${{ inputs.release_id }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify production without mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-observation
+    env:
+      EXPECTED_RELEASE_ID: ${{ inputs.release_id }}
+      EXPECTED_DEPLOYMENT_VERSION: ${{ inputs.release_id }}
+      EVIDENCE_REVISION: ${{ inputs.evidence_revision }}
+      GO_LIVE_EVIDENCE_PATH: ${{ inputs.evidence_path }}
+      PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+      PRODUCTION_METRICS_TOKEN: ${{ secrets.PRODUCTION_METRICS_TOKEN }}
+      PRODUCTION_CHECKPOINT: ${{ inputs.checkpoint }}
+      PRODUCTION_OBSERVATION_COUNT: "3"
+      PRODUCTION_OBSERVATION_INTERVAL_MS: "15000"
+      PRODUCTION_RELEASE_SAMPLE_COUNT: "5"
+      PRODUCTION_REQUEST_TIMEOUT_MS: "10000"
+
+    steps:
+      - name: Validate immutable revision inputs
+        shell: bash
+        run: |
+          [[ "${EXPECTED_RELEASE_ID}" =~ ^[a-f0-9]{40}$ ]]
+          [[ "${EVIDENCE_REVISION}" =~ ^[a-f0-9]{40}$ ]]
+
+      - name: Checkout exact evidence revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.evidence_revision }}
+          fetch-depth: 0
+
+      - name: Checkout exact application release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release_id }}
+          path: .release-source
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .release-source/.nvmrc
+
+      - name: Verify release and evidence ancestry
+        shell: bash
+        run: |
+          test "$(git -C .release-source rev-parse HEAD)" = "${EXPECTED_RELEASE_ID}"
+          test "$(git rev-parse HEAD)" = "${EVIDENCE_REVISION}"
+          git merge-base --is-ancestor "${EXPECTED_RELEASE_ID}" "${EVIDENCE_REVISION}"
+
+      - name: Revalidate approved Go-Live evidence
+        run: >-
+          node .release-source/scripts/check-go-live-readiness.mjs
+          --output go-live-readiness.json
+
+      - name: Observe production without mutating it
+        run: >-
+          node .release-source/scripts/check-production-verification.mjs
+          --output production-verification.json
+
+      - name: Upload post-deployment evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-${{ inputs.checkpoint }}-${{ inputs.release_id }}
+          path: |
+            go-live-readiness.json
+            production-verification.json
+          if-no-files-found: error
+          retention-days: 90

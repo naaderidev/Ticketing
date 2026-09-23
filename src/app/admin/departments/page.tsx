@@ -1,5 +1,5 @@
-import { DepartmentManager } from "@/components/shared/department-manager"
+import { redirect } from "next/navigation";
 
 export default function AdminDepartmentsPage() {
-  return <DepartmentManager />
+  redirect("/admin/support-catalog");
 }

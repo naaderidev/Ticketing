@@ -6,11 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import dynamic from "next/dynamic"
-
-const DatePicker = dynamic(() => import("react-multi-date-picker"), { ssr: false })
-import persian from "react-date-object/calendars/persian"
-import persian_fa from "react-date-object/locales/persian_fa"
+import { PersianDatePicker } from "@/components/ui/persian-date-picker"
 import {
   Select,
   SelectContent,
@@ -184,29 +180,23 @@ export function TicketList({ mode }: TicketListProps) {
 
             <div className="flex flex-col">
               <label className="mb-2 text-sm font-medium">{labels.FILTER_DATE_FROM}</label>
-              <DatePicker
-                inputClass="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              <PersianDatePicker
                 value={dateFrom}
-                onChange={(date) => { setDateFrom(date && !Array.isArray(date) ? date.format("YYYY-MM-DD") : ""); setPage(1) }}
-                calendar={persian}
-                locale={persian_fa}
-                format="YYYY/MM/DD"
-                calendarPosition="bottom-right"
+                onChange={(date) => { setDateFrom(date); setPage(1) }}
                 placeholder="انتخاب تاریخ"
+                maxDate={dateTo || undefined}
+                aria-label={labels.FILTER_DATE_FROM}
               />
             </div>
 
             <div className="flex flex-col">
               <label className="mb-2 text-sm font-medium">{labels.FILTER_DATE_TO}</label>
-              <DatePicker
-                inputClass="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              <PersianDatePicker
                 value={dateTo}
-                onChange={(date) => { setDateTo(date && !Array.isArray(date) ? date.format("YYYY-MM-DD") : ""); setPage(1) }}
-                calendar={persian}
-                locale={persian_fa}
-                format="YYYY/MM/DD"
-                calendarPosition="bottom-right"
+                onChange={(date) => { setDateTo(date); setPage(1) }}
                 placeholder="انتخاب تاریخ"
+                minDate={dateFrom || undefined}
+                aria-label={labels.FILTER_DATE_TO}
               />
             </div>
 

@@ -1,8 +1,12 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import { prisma } from "@/lib/prisma";
 import { addReply } from "@/lib/ticket-service";
 import { errors } from "@/lib/strings";
 import { replySchema } from "@/lib/validations";
+import { requireTicketPermission } from "@/lib/api-authorization";
+import { handleApiError, parseJsonBody, parseTicketIdentifier } from "@/lib/api-validation";
+import { publicAttachmentSelect, toAttachmentDto } from "@/lib/attachment-dto";
+import { AUTHENTICATED_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export async function GET(
   request: Request,
@@ -10,27 +14,25 @@ export async function GET(
 ) {
   try {
     const { ticketId } = await params;
-
-    const ticket = await prisma.ticket.findUnique({
-      where: { ticketId },
-    });
-
-    if (!ticket) {
-      return NextResponse.json({ error: errors.TICKET_NOT_FOUND }, { status: 404 });
-    }
+    const parsedTicketId = parseTicketIdentifier(ticketId);
+    if (!parsedTicketId.success) return parsedTicketId.response;
+    const access = await requireTicketPermission(parsedTicketId.data, "read");
+    if (!access.authorized) return access.response;
 
     const replies = await prisma.ticketReply.findMany({
-      where: { ticketId: ticket.id },
-      include: { attachments: true },
+      where: { ticketId: access.value.ticket.id },
+      include: { attachments: { select: publicAttachmentSelect } },
       orderBy: { createdAt: "asc" },
     });
 
-    return NextResponse.json(replies);
-  } catch (error) {
-    return NextResponse.json(
-      { error: errors.FETCH_REPLIES },
-      { status: 500 }
+    return apiJsonResponse(
+      replies.map((reply) => ({
+        ...reply,
+        attachments: reply.attachments.map(toAttachmentDto),
+      }))
     );
+  } catch (error) {
+    return handleApiError(error, errors.FETCH_REPLIES, "Error fetching replies");
   }
 }
 
@@ -40,24 +42,25 @@ export async function POST(
 ) {
   try {
     const { ticketId } = await params;
-    const body = await request.json();
-    const result = replySchema.safeParse(body);
-    if (!result.success) {
-      const firstError = result.error.issues[0]?.message || "داده‌های ورودی معتبر نیستند";
-      return NextResponse.json({ error: firstError }, { status: 400 });
-    }
-    const reply = await addReply(ticketId, body);
-    return NextResponse.json(reply, { status: 201 });
+    const parsedTicketId = parseTicketIdentifier(ticketId);
+    if (!parsedTicketId.success) return parsedTicketId.response;
+    const access = await requireTicketPermission(parsedTicketId.data, "reply", {
+      rateLimit: AUTHENTICATED_MUTATION_LIMIT,
+    });
+    if (!access.authorized) return access.response;
+
+    const body = await parseJsonBody(request, replySchema);
+    if (!body.success) return body.response;
+    const actor = access.value.user;
+    const reply = await addReply(parsedTicketId.data, {
+      ...body.data,
+      senderType: actor.role,
+      senderName: `${actor.firstName} ${actor.lastName}`.trim(),
+      attachmentUploaderId: actor.id,
+      actorUserId: actor.id,
+    });
+    return apiJsonResponse(reply, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : errors.CREATE_REPLY;
-    const status = message.includes("یافت نشد")
-      ? 404
-      : message.includes("الزامی") ||
-          message.includes("نامعتبر") ||
-          message.includes("بسته شده")
-        ? 400
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.CREATE_REPLY, "Error creating reply");
   }
 }

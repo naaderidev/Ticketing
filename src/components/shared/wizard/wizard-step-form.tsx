@@ -8,13 +8,7 @@ import { FileUpload } from "@/components/shared/file-upload";
 import { ArrowRight, Send } from "lucide-react";
 import { labels, titles, descriptions, buttons, placeholders, misc } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
-
-interface Attachment {
-  fileName: string;
-  fileSize: number;
-  fileType: string;
-  fileUrl: string;
-}
+import type { Attachment } from "@/types/shared";
 
 interface WizardStepFormProps {
   subject: string;
@@ -27,7 +21,7 @@ interface WizardStepFormProps {
   onSubjectChange: (value: string) => void;
   onMessageChange: (value: string) => void;
   onFileUpload: (file: Attachment) => void;
-  onFileRemove: (fileUrl: string) => void;
+  onFileRemove: (uploadId: string) => void;
   onSubmit: () => void;
   onBack: () => void;
 }
@@ -92,6 +86,7 @@ export function WizardStepForm({
             }
           }}
           maxLength={1000}
+          showCharacterCount={false}
         />
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>{toPersianDigits(message.length)} / ۱۰۰۰</span>

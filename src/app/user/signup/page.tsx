@@ -13,12 +13,7 @@ import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { createUserSchema, CreateUserInput } from "@/lib/validations"
 import { toast } from "sonner"
-import dynamic from "next/dynamic"
-
-const DatePicker = dynamic(() => import("react-multi-date-picker"), { ssr: false })
-
-import persian from "react-date-object/calendars/persian"
-import persian_fa from "react-date-object/locales/persian_fa"
+import { PersianDatePicker } from "@/components/ui/persian-date-picker"
 
 function SignupForm() {
   const router = useRouter()
@@ -38,7 +33,7 @@ function SignupForm() {
     setIsLoading(true)
 
     try {
-      const res = await fetch("/api/users", {
+      const res = await fetch("/api/users/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -172,19 +167,11 @@ function SignupForm() {
                 control={control}
                 name="birthday"
                 render={({ field }) => (
-                  <DatePicker
-                    containerClassName="w-full"
-                    style={{ width: "100%" }}
-                    inputClass="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  <PersianDatePicker
                     value={field.value || ""}
-                    onChange={(date) => {
-                      field.onChange(date && !Array.isArray(date) ? date.format("YYYY/MM/DD") : "");
-                    }}
-                    calendar={persian}
-                    locale={persian_fa}
-                    format="YYYY/MM/DD"
-                    calendarPosition="bottom-right"
+                    onChange={field.onChange}
                     placeholder="انتخاب تاریخ تولد"
+                    aria-label={labels.USER_BIRTHDAY}
                   />
                 )}
               />

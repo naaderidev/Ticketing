@@ -3,9 +3,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PredefinedMessage } from "@/types/ticket";
 
-export function useMessages() {
+interface UseMessagesOptions {
+  enabled?: boolean;
+}
+
+export function useMessages({ enabled = true }: UseMessagesOptions = {}) {
   return useQuery<PredefinedMessage[]>({
     queryKey: ["messages"],
+    enabled,
     queryFn: async () => {
       const res = await fetch("/api/messages");
       if (!res.ok) throw new Error("Failed to fetch messages");

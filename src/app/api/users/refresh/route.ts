@@ -1,39 +1,31 @@
-import { NextResponse } from "next/server";
-import { refreshTokenIfNeeded } from "@/lib/auth";
-import { cookies } from "next/headers";
-
-const COOKIE_NAME = "auth-token";
+import { apiJsonResponse } from "@/lib/api-date-contract";
+import { refreshAuthSession, removeAuthCookie } from "@/lib/auth";
+import { requireAuthenticatedUser } from "@/lib/api-authorization";
+import { apiError, handleApiError } from "@/lib/api-validation";
+import { AUTHENTICATED_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export async function POST() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(COOKIE_NAME)?.value;
+    const auth = await requireAuthenticatedUser({
+      rateLimit: AUTHENTICATED_MUTATION_LIMIT,
+    });
+    if (!auth.authorized) return auth.response;
 
-    if (!token) {
-      return NextResponse.json(
-        { error: "توکن یافت نشد" },
-        { status: 401 }
-      );
+    const refreshed = await refreshAuthSession({
+      userId: auth.value.id,
+      sessionId: auth.value.sessionId,
+    });
+    if (!refreshed) {
+      await removeAuthCookie();
+      return apiError("نشست کاربری معتبر نیست", 401, "UNAUTHORIZED");
     }
 
-    const newToken = await refreshTokenIfNeeded(token);
-
-    if (newToken) {
-      cookieStore.set(COOKIE_NAME, newToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        maxAge: 7 * 24 * 60 * 60,
-        path: "/",
-      });
-      return NextResponse.json({ refreshed: true });
-    }
-
-    return NextResponse.json({ refreshed: false });
-  } catch {
-    return NextResponse.json(
-      { error: "خطا در بروزرسانی توکن" },
-      { status: 500 }
+    return apiJsonResponse({ refreshed: true });
+  } catch (error) {
+    return handleApiError(
+      error,
+      "خطا در بروزرسانی نشست",
+      "Error refreshing session"
     );
   }
 }

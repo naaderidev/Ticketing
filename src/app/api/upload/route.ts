@@ -1,78 +1,72 @@
-import { NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { randomBytes } from 'crypto'
-import { getAuthUser } from '@/lib/auth'
+import { apiJsonResponse } from "@/lib/api-date-contract";
+import { createPendingUpload } from "@/lib/attachment-service";
+import { MAX_ATTACHMENT_SIZE } from "@/lib/attachment-inspection";
+import { requireAuthenticatedUser } from "@/lib/api-authorization";
+import { apiError, handleApiError } from "@/lib/api-validation";
+import { errors } from "@/lib/strings";
+import { UPLOAD_LIMIT } from "@/lib/rate-limit";
+import { recordAuditEvent } from "@/lib/audit-log";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-const ALLOWED_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/plain',
-  'audio/mpeg',
-  'audio/wav',
-  'audio/ogg',
-  'video/mp4',
-  'video/webm',
-]
+const MAX_MULTIPART_REQUEST_SIZE = MAX_ATTACHMENT_SIZE + 1024 * 1024;
+
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const authUser = await getAuthUser()
-    if (!authUser) {
-      return NextResponse.json(
-        { error: 'احراز هویت الزامی است' },
-        { status: 401 }
-      )
+    const auth = await requireAuthenticatedUser({ rateLimit: UPLOAD_LIMIT });
+    if (!auth.authorized) return auth.response;
+
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && Number(contentLength) > MAX_MULTIPART_REQUEST_SIZE) {
+      return apiError(errors.FILE_TOO_LARGE, 400, "INVALID_REQUEST");
     }
 
-    const formData = await request.formData()
-    const file = formData.get('file') as File | null
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      return apiError("فرم ارسالی معتبر نیست", 400, "INVALID_REQUEST");
+    }
+    if (
+      [...formData.keys()].some((key) => key !== "file") ||
+      formData.getAll("file").length !== 1
+    ) {
+      return apiError("ساختار فرم ارسالی معتبر نیست", 400, "INVALID_REQUEST");
+    }
+    const file = formData.get("file");
 
-    if (!file) {
-      return NextResponse.json({ error: 'فایل ارسال نشد' }, { status: 400 })
+    if (!(file instanceof File)) {
+      return apiError(errors.FILE_NOT_SENT, 400, "INVALID_REQUEST");
     }
 
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: 'حجم فایل نباید بیشتر از 5 مگابایت باشد' },
-        { status: 400 }
-      )
+    if (file.size === 0) {
+      return apiError(errors.FILE_EMPTY, 400, "INVALID_REQUEST");
     }
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'نوع فایل پشتیبانی نمی‌شود' },
-        { status: 400 }
-      )
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      return apiError(errors.FILE_TOO_LARGE, 400, "INVALID_REQUEST");
     }
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    const upload = await createPendingUpload({
+      uploaderId: auth.value.id,
+      originalName: file.name,
+      declaredMediaType: file.type,
+      content: Buffer.from(await file.arrayBuffer()),
+    });
 
-    const ext = file.name.split('.').pop()
-    const fileName = `${Date.now()}-${randomBytes(8).toString('hex')}.${ext}`
-    
-    const uploadDir = join(process.cwd(), 'public', 'uploads')
-    await mkdir(uploadDir, { recursive: true })
-    
-    const filePath = join(uploadDir, fileName)
-    await writeFile(filePath, buffer)
+    await recordAuditEvent({
+      request,
+      action: "ATTACHMENT_UPLOAD",
+      outcome: "SUCCESS",
+      actorUserId: auth.value.id,
+      sessionId: auth.value.sessionId,
+      targetType: "PENDING_UPLOAD",
+      targetId: upload.uploadId,
+      metadata: { fileSize: file.size, fileType: file.type },
+    });
 
-    return NextResponse.json({
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      fileUrl: `/uploads/${fileName}`,
-    })
+    return apiJsonResponse(upload, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: 'خطا در آپلود فایل' }, { status: 500 })
+    return handleApiError(error, errors.UPLOAD_FILE, "Error uploading file");
   }
 }

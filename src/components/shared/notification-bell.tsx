@@ -10,7 +10,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Bell, CheckCheck } from "lucide-react";
+import { AlertCircle, Bell, CheckCheck, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { labels } from "@/lib/strings";
 import { toPersianDigits, formatRelativeTime } from "@/lib/format";
@@ -33,7 +33,14 @@ export const NotificationBell = React.memo(function NotificationBell({
   const userId = recipientType === "USER" ? user?.id : undefined;
 
   // React Query hooks
-  const { data: notificationData, isLoading } = useNotifications(userId);
+  const {
+    data: notificationData,
+    error,
+    isError,
+    isFetching,
+    isLoading,
+    refetch,
+  } = useNotifications(userId);
   const markNotificationReadMutation = useMarkNotificationRead();
   const markAllNotificationsReadMutation = useMarkAllNotificationsRead();
 
@@ -48,7 +55,7 @@ export const NotificationBell = React.memo(function NotificationBell({
     });
   }, [markNotificationReadMutation]);
 
-  const handleClick = useCallback(async (notification: { id: number; isRead: boolean; ticketId: number }) => {
+  const handleClick = useCallback(async (notification: { id: number; isRead: boolean; ticketId: string }) => {
     if (!notification.isRead) {
       await markAsRead(notification.id);
     }
@@ -103,6 +110,23 @@ export const NotificationBell = React.memo(function NotificationBell({
           {isLoading ? (
             <div className="flex justify-center py-8">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          ) : isError ? (
+            <div role="alert" className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+              <AlertCircle className="h-7 w-7 text-destructive" />
+              <p className="text-sm font-medium">دریافت نوتیفیکیشن‌ها ناموفق بود</p>
+              <p className="text-xs text-muted-foreground">
+                {error instanceof Error ? error.message : "لطفاً دوباره تلاش کنید."}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+              >
+                <RefreshCw className={cn("ml-1 h-3 w-3", isFetching && "animate-spin")} />
+                {isFetching ? "در حال تلاش..." : "تلاش مجدد"}
+              </Button>
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">

@@ -210,12 +210,10 @@ export function MessageManager() {
       />
 
       <MessageList
-        messages={messages}
         filteredMessages={filteredMessages}
         isLoading={isLoading}
         filterCategory={filterCategory}
         categories={categories}
-        subDepartments={allSubDepartments}
         copiedId={copiedId}
         onFilterCategoryChange={setFilterCategory}
         onEdit={openEditDialog}

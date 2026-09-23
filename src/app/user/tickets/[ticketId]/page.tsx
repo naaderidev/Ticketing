@@ -1,7 +1,13 @@
-"use client"
+import { connection } from "next/server";
+import { CustomerTicketDetail } from "@/components/customer-v2/customer-ticket-detail";
+import { TicketDetail } from "@/components/shared/ticket-detail";
+import { isCustomerExperienceV2Enabled } from "@/lib/feature-flags";
 
-import { TicketDetail } from "@/components/shared/ticket-detail"
-
-export default function UserTicketDetailPage() {
-  return <TicketDetail mode="user" />
+export default async function UserTicketDetailPage() {
+  await connection();
+  return isCustomerExperienceV2Enabled() ? (
+    <CustomerTicketDetail />
+  ) : (
+    <TicketDetail mode="user" />
+  );
 }

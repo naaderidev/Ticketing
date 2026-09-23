@@ -1,34 +1,28 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import { getNotifications } from "@/lib/notification-service";
 import { errors } from "@/lib/strings";
-import { getAuthUser } from "@/lib/auth";
+import { requireAuthenticatedUser } from "@/lib/api-authorization";
+import { notificationQuerySchema } from "@/lib/validations";
+import { handleApiError, parseQuery } from "@/lib/api-validation";
 
 export async function GET(request: Request) {
   try {
-    const authUser = await getAuthUser();
-    if (!authUser) {
-      return NextResponse.json(
-        { error: "احراز هویت الزامی است" },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuthenticatedUser();
+    if (!auth.authorized) return auth.response;
+    const authUser = auth.value;
 
     const { searchParams } = new URL(request.url);
+    const query = parseQuery(searchParams, notificationQuerySchema);
+    if (!query.success) return query.response;
 
     const result = await getNotifications({
-      recipientType: searchParams.get("recipientType") || undefined,
-      unreadOnly: searchParams.get("unreadOnly") || undefined,
-      userId: authUser.role === "ADMIN"
-        ? searchParams.get("userId") || undefined
-        : authUser.id.toString(),
+      recipientType: authUser.role === "ADMIN" ? "ADMIN" : "USER",
+      unreadOnly: query.data.unreadOnly,
+      userId: authUser.role === "USER" ? authUser.id.toString() : undefined,
     });
 
-    return NextResponse.json(result);
+    return apiJsonResponse(result);
   } catch (error) {
-    console.error("Error fetching notifications:", error);
-    return NextResponse.json(
-      { error: errors.FETCH_NOTIFICATIONS },
-      { status: 500 }
-    );
+    return handleApiError(error, errors.FETCH_NOTIFICATIONS, "Error fetching notifications");
   }
 }

@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Star, XCircle } from "lucide-react";
-import { Ticket } from "@/types/ticket";
 import {
   labels,
   titles,
@@ -35,7 +34,6 @@ interface TicketUpdateData {
 }
 
 interface TicketCloseDialogProps {
-  ticket: Ticket;
   isAdmin: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,7 +47,6 @@ interface TicketCloseDialogProps {
 }
 
 export const TicketCloseDialog = React.memo(function TicketCloseDialog({
-  ticket,
   isAdmin,
   open,
   onOpenChange,
@@ -173,6 +170,7 @@ export const TicketCloseDialog = React.memo(function TicketCloseDialog({
               placeholder={placeholders.TICKET_CLOSE_REASON}
               value={closeReason}
               onChange={handleReasonChange}
+              maxLength={500}
             />
           </div>
         </div>

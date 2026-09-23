@@ -1,0 +1,75 @@
+name: Reporting Controlled Rollout Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Full lowercase application release commit SHA
+        required: true
+        type: string
+      from_stage:
+        description: Previously verified Reporting stage
+        required: true
+        type: choice
+        options: [DISABLED, SHADOW, CANARY, GENERAL]
+      target_stage:
+        description: Runtime stage to verify after the infrastructure change
+        required: true
+        type: choice
+        options: [DISABLED, SHADOW, CANARY, GENERAL]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reporting-rollout-${{ inputs.release_id }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify Reporting stage without mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production-observation
+    env:
+      EXPECTED_DEPLOYMENT_VERSION: ${{ inputs.release_id }}
+      REPORTING_ROLLOUT_FROM_STAGE: ${{ inputs.from_stage }}
+      REPORTING_ROLLOUT_TARGET_STAGE: ${{ inputs.target_stage }}
+      REPORTING_ROLLOUT_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+      REPORTING_ROLLOUT_METRICS_TOKEN: ${{ secrets.PRODUCTION_METRICS_TOKEN }}
+      REPORTING_ROLLOUT_MAINTENANCE_TOKEN: ${{ secrets.PRODUCTION_REPORTING_MAINTENANCE_TOKEN }}
+      REPORTING_ROLLOUT_OBSERVATION_COUNT: "3"
+      REPORTING_ROLLOUT_REQUEST_TIMEOUT_MS: "10000"
+
+    steps:
+      - name: Validate immutable release input
+        shell: bash
+        run: '[[ "${EXPECTED_DEPLOYMENT_VERSION}" =~ ^[a-f0-9]{40}$ ]]'
+
+      - name: Checkout exact application release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.release_id }}
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Verify immutable checkout
+        shell: bash
+        run: 'test "$(git rev-parse HEAD)" = "${EXPECTED_DEPLOYMENT_VERSION}"'
+
+      - name: Verify controlled Reporting rollout
+        run: >-
+          node scripts/check-reporting-controlled-rollout.mjs
+          --output reporting-controlled-rollout.json
+
+      - name: Upload sanitized rollout evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reporting-${{ inputs.target_stage }}-${{ inputs.release_id }}
+          path: reporting-controlled-rollout.json
+          if-no-files-found: error
+          retention-days: 90

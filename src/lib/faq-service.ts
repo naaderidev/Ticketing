@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { errors } from "@/lib/strings";
+import { runSerializableTransaction } from "@/lib/database-transaction";
+import {
+  notFoundError,
+  rethrowPersistenceError,
+  validationError,
+} from "@/lib/domain-error";
 
 interface FaqFilters {
   departmentId?: string;
@@ -48,49 +54,49 @@ export async function createFaq(data: CreateFaqData) {
   const { question, answer, departmentId, subDepartmentId, priority } = data;
 
   if (!question || !answer || !departmentId) {
-    throw new Error(errors.FAQ_REQUIRED_FIELDS);
+    throw validationError(errors.FAQ_REQUIRED_FIELDS);
   }
 
   const deptId = parseInt(departmentId);
+  const subDeptId = subDepartmentId ? parseInt(subDepartmentId) : null;
 
-  const department = await prisma.department.findUnique({ where: { id: deptId } });
-  if (!department) {
-    throw new Error(errors.DEPARTMENT_NOT_FOUND);
-  }
-
-  if (subDepartmentId) {
-    const subDept = await prisma.subDepartment.findUnique({
-      where: { id: parseInt(subDepartmentId) },
+  return runSerializableTransaction(async (transaction) => {
+    const department = await transaction.department.findUnique({
+      where: { id: deptId },
+      select: { id: true },
     });
-    if (!subDept) {
-      throw new Error(errors.SUB_DEPARTMENT_NOT_FOUND);
+    if (!department) throw notFoundError(errors.DEPARTMENT_NOT_FOUND);
+
+    if (subDeptId) {
+      const subDepartment = await transaction.subDepartment.findUnique({
+        where: { id: subDeptId },
+        select: { id: true, departmentId: true },
+      });
+      if (!subDepartment) throw notFoundError(errors.SUB_DEPARTMENT_NOT_FOUND);
+      if (subDepartment.departmentId !== department.id) {
+        throw validationError(errors.SUB_DEPARTMENT_DEPARTMENT_MISMATCH);
+      }
     }
-  }
 
-  const whereClause: Record<string, unknown> = { departmentId: deptId };
-  if (subDepartmentId) {
-    whereClause.subDepartmentId = parseInt(subDepartmentId);
-  }
+    const aggregate = await transaction.fAQ.aggregate({
+      where: { departmentId: deptId, subDepartmentId: subDeptId },
+      _max: { priority: true },
+    });
+    const finalPriority = priority ?? (aggregate._max.priority ?? 0) + 1;
 
-  const aggregate = await prisma.fAQ.aggregate({
-    where: whereClause,
-    _max: { priority: true },
-  });
-
-  const finalPriority = priority ?? (aggregate._max.priority ?? 0) + 1;
-
-  return prisma.fAQ.create({
-    data: {
-      question,
-      answer,
-      departmentId: deptId,
-      subDepartmentId: subDepartmentId ? parseInt(subDepartmentId) : null,
-      priority: finalPriority,
-    },
-    include: {
-      department: { select: { name: true } },
-      subDepartment: { select: { name: true } },
-    },
+    return transaction.fAQ.create({
+      data: {
+        question,
+        answer,
+        departmentId: deptId,
+        subDepartmentId: subDeptId,
+        priority: finalPriority,
+      },
+      include: {
+        department: { select: { name: true } },
+        subDepartment: { select: { name: true } },
+      },
+    });
   });
 }
 
@@ -103,7 +109,7 @@ interface UpdateFaqData {
 export async function updateFaq(id: number, data: UpdateFaqData) {
   const faq = await prisma.fAQ.findUnique({ where: { id } });
   if (!faq) {
-    throw new Error(errors.FAQ_NOT_FOUND);
+    throw notFoundError(errors.FAQ_NOT_FOUND);
   }
 
   const updateData: Record<string, unknown> = {};
@@ -111,33 +117,52 @@ export async function updateFaq(id: number, data: UpdateFaqData) {
   if (data.answer) updateData.answer = data.answer;
   if (data.priority !== undefined) updateData.priority = data.priority;
 
-  return prisma.fAQ.update({
-    where: { id },
-    data: updateData,
-    include: {
-      department: { select: { name: true } },
-      subDepartment: { select: { name: true } },
-    },
-  });
+  try {
+    return await prisma.fAQ.update({
+      where: { id },
+      data: updateData,
+      include: {
+        department: { select: { name: true } },
+        subDepartment: { select: { name: true } },
+      },
+    });
+  } catch (error) {
+    rethrowPersistenceError(error, { notFound: errors.FAQ_NOT_FOUND });
+  }
 }
 
 export async function deleteFaq(id: number) {
-  await prisma.fAQ.delete({ where: { id } });
+  try {
+    await prisma.fAQ.delete({ where: { id } });
+  } catch (error) {
+    rethrowPersistenceError(error, { notFound: errors.FAQ_NOT_FOUND });
+  }
 }
 
 export async function reorderFaqs(
   items: Array<{ id: number; priority: number }>
 ) {
   if (!items || !Array.isArray(items)) {
-    throw new Error(errors.ITEMS_REQUIRED);
+    throw validationError(errors.ITEMS_REQUIRED);
+  }
+  const uniqueIds = new Set(items.map((item) => item.id));
+  const uniquePriorities = new Set(items.map((item) => item.priority));
+  if (uniqueIds.size !== items.length || uniquePriorities.size !== items.length) {
+    throw validationError("شناسه و اولویت آیتم‌ها باید یکتا باشند");
   }
 
-  const updates = items.map((item) =>
-    prisma.fAQ.update({
-      where: { id: item.id },
-      data: { priority: item.priority },
-    })
-  );
+  await runSerializableTransaction(async (transaction) => {
+    const existing = await transaction.fAQ.findMany({
+      where: { id: { in: [...uniqueIds] } },
+      select: { id: true },
+    });
+    if (existing.length !== uniqueIds.size) throw notFoundError(errors.FAQ_NOT_FOUND);
 
-  await prisma.$transaction(updates);
+    for (const item of items) {
+      await transaction.fAQ.update({
+        where: { id: item.id },
+        data: { priority: item.priority },
+      });
+    }
+  });
 }

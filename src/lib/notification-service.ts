@@ -1,10 +1,23 @@
 import { prisma } from "@/lib/prisma";
-import { RecipientType } from "@prisma/client";
+import { RecipientType, type Notification } from "@prisma/client";
+import { rethrowPersistenceError } from "@/lib/domain-error";
+import { errors } from "@/lib/strings";
 
 interface NotificationFilters {
   recipientType?: string;
   unreadOnly?: string;
   userId?: string;
+}
+
+type NotificationWithTicket = Notification & {
+  ticket: { ticketId: string };
+};
+
+const ticketReference = { ticket: { select: { ticketId: true } } } as const;
+
+function toNotificationDto(notification: NotificationWithTicket) {
+  const { ticket, ...record } = notification;
+  return { ...record, ticketId: ticket.ticketId };
 }
 
 export async function getNotifications(filters: NotificationFilters) {
@@ -25,7 +38,7 @@ export async function getNotifications(filters: NotificationFilters) {
   const [notifications, unreadCount] = await Promise.all([
     prisma.notification.findMany({
       where,
-      include: { ticket: { select: { ticketId: true } } },
+      include: ticketReference,
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
@@ -34,14 +47,23 @@ export async function getNotifications(filters: NotificationFilters) {
     }),
   ]);
 
-  return { notifications, unreadCount };
+  return {
+    notifications: notifications.map(toNotificationDto),
+    unreadCount,
+  };
 }
 
 export async function markAsRead(id: number) {
-  return prisma.notification.update({
-    where: { id },
-    data: { isRead: true },
-  });
+  try {
+    const notification = await prisma.notification.update({
+      where: { id },
+      data: { isRead: true },
+      include: ticketReference,
+    });
+    return toNotificationDto(notification);
+  } catch (error) {
+    rethrowPersistenceError(error, { notFound: errors.NOTIFICATION_NOT_FOUND });
+  }
 }
 
 export async function markAllAsRead(filters: {

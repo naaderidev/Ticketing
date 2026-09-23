@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { labels, titles, errors, buttons } from "@/lib/strings";
+import { labels, buttons } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
 import { SubDepartmentWithCount } from "@/types/shared";
 

@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { Pencil, Trash2, HelpCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { labels } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
 

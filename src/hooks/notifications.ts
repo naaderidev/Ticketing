@@ -4,14 +4,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { NotificationItem } from "@/types/shared";
 
 export function useNotifications(userId?: number) {
-  const params = new URLSearchParams();
-  if (userId) params.set("userId", userId.toString());
-
   return useQuery<{ notifications: NotificationItem[]; unreadCount: number }>({
     queryKey: ["notifications", userId],
     queryFn: async () => {
-      const res = await fetch(`/api/notifications?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch notifications");
+      const res = await fetch("/api/notifications");
+      if (!res.ok) throw new Error("دریافت نوتیفیکیشن‌ها ناموفق بود");
       return res.json();
     },
     refetchInterval: 30000,
@@ -38,9 +35,8 @@ export function useMarkAllNotificationsRead() {
 
   return useMutation({
     mutationFn: async (userId?: number) => {
-      const params = new URLSearchParams();
-      if (userId) params.set("userId", userId.toString());
-      const res = await fetch(`/api/notifications/read-all?${params.toString()}`, { method: "PUT" });
+      void userId;
+      const res = await fetch("/api/notifications/read-all", { method: "PUT" });
       if (!res.ok) throw new Error("Failed to mark all notifications as read");
       return res.json();
     },

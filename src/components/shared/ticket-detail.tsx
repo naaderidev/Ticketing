@@ -57,7 +57,7 @@ export function TicketDetail({ mode }: Readonly<TicketDetailProps>) {
   const addReplyMutation = useAddReply();
   const rateTicketMutation = useRateTicket();
   const { data: departments = [] } = useDepartments();
-  const { data: messages = [] } = useMessages();
+  const { data: messages = [] } = useMessages({ enabled: isAdmin });
 
   // Get sub-departments for transfer department
   const { data: subDepartments = [] } = useSubDepartments(
@@ -118,7 +118,6 @@ export function TicketDetail({ mode }: Readonly<TicketDetailProps>) {
                   data: {
                     status: "CLOSED",
                     closedReason: "امتیازدهی توسط کاربر",
-                    closedBy: "USER",
                   },
                 },
                 {
@@ -144,7 +143,6 @@ export function TicketDetail({ mode }: Readonly<TicketDetailProps>) {
             data: {
               status: "CLOSED",
               closedReason: "امتیازدهی توسط کاربر",
-              closedBy: "USER",
             },
           },
           {
@@ -237,7 +235,6 @@ export function TicketDetail({ mode }: Readonly<TicketDetailProps>) {
         {/* User Close Dialog */}
         {!isAdmin && ticket.status !== "CLOSED" && (
           <TicketCloseDialog
-            ticket={ticket}
             isAdmin={false}
             open={isCloseDialogOpen}
             onOpenChange={setIsCloseDialogOpen}
@@ -265,7 +262,6 @@ export function TicketDetail({ mode }: Readonly<TicketDetailProps>) {
         {/* Admin Close Dialog */}
         {isAdmin && (
           <TicketCloseDialog
-            ticket={ticket}
             isAdmin={true}
             open={isCloseDialogOpen}
             onOpenChange={setIsCloseDialogOpen}

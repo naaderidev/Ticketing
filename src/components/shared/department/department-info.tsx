@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Building2, FolderOpen, Pencil } from "lucide-react";
-import { labels, buttons, errors, descriptions } from "@/lib/strings";
+import { labels, buttons, descriptions } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
 import { DepartmentWithCount } from "@/types/shared";
 

@@ -1,0 +1,76 @@
+name: ticketing-demo
+
+services:
+  database:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ticketing_demo
+      MYSQL_USER: ticketing_demo
+      MYSQL_PASSWORD: ${DEMO_DATABASE_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DEMO_DATABASE_ROOT_PASSWORD}
+    volumes:
+      - ticketing-demo-database:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  bootstrap:
+    build:
+      context: .
+      target: demo-bootstrap
+    env_file: .env.demo.example
+    environment:
+      DATABASE_URL: mysql://ticketing_demo:${DEMO_DATABASE_PASSWORD}@database:3306/ticketing_demo
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+      args:
+        DEPLOYMENT_VERSION: ${DEPLOYMENT_VERSION:-demo-2026-09-23}
+        DEMO_MODE: "true"
+        NEXT_PUBLIC_DEMO_MODE: "true"
+    restart: unless-stopped
+    env_file: .env.demo.example
+    environment:
+      DATABASE_URL: mysql://ticketing_demo:${DEMO_DATABASE_PASSWORD}@database:3306/ticketing_demo
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    ports:
+      - "3009:3000"
+    volumes:
+      - ticketing-demo-attachments:/app/.local-data/private-attachments
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+
+  scheduler:
+    build:
+      context: .
+      target: scheduler
+      args:
+        DEPLOYMENT_VERSION: ${DEPLOYMENT_VERSION:-demo-2026-09-23}
+        DEMO_MODE: "true"
+        NEXT_PUBLIC_DEMO_MODE: "true"
+    restart: unless-stopped
+    env_file: .env.demo.example
+    environment:
+      MAINTENANCE_BASE_URL: http://app:3000
+    depends_on:
+      app:
+        condition: service_healthy
+
+volumes:
+  ticketing-demo-database:
+  ticketing-demo-attachments:

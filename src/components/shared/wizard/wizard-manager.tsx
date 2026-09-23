@@ -10,7 +10,7 @@ import { WizardStepDepartment } from "./wizard-step-department";
 import { WizardStepSubDepartment } from "./wizard-step-sub-department";
 import { WizardStepFAQ } from "./wizard-step-faq";
 import { WizardStepForm } from "./wizard-step-form";
-import { DepartmentWithCount, SubDepartmentWithCount, FAQItem, Attachment } from "@/types/shared";
+import { DepartmentWithCount, SubDepartmentWithCount, Attachment } from "@/types/shared";
 import { useUser } from "@/contexts/user-context";
 import { useDepartments, useSubDepartments, useFaqs, useCreateTicket } from "@/hooks";
 
@@ -45,8 +45,6 @@ export function WizardManager() {
 
   const createTicketMutation = useCreateTicket();
 
-  const isLoading = isLoadingDepartments || isLoadingSubDepartments || isLoadingFaqs;
-
   const handleDepartmentSelect = (dept: DepartmentWithCount) => {
     setSelectedDepartment(dept);
     setSelectedSubDepartment(null);
@@ -66,8 +64,8 @@ export function WizardManager() {
     setAttachments((prev) => [...prev, file]);
   };
 
-  const handleFileRemove = (fileUrl: string) => {
-    setAttachments((prev) => prev.filter((f) => f.fileUrl !== fileUrl));
+  const handleFileRemove = (uploadId: string) => {
+    setAttachments((prev) => prev.filter((file) => file.uploadId !== uploadId));
   };
 
   const handleSubmit = () => {
@@ -80,7 +78,6 @@ export function WizardManager() {
 
     createTicketMutation.mutate(
       {
-        userName: user ? `${user.firstName} ${user.lastName}` : "",
         subject: subject.trim(),
         message: message.trim(),
         departmentId: String(selectedDepartment?.id),

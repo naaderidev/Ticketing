@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Department, SubDepartment } from "@/types/ticket";
 import { DepartmentWithCount, SubDepartmentWithCount } from "@/types/shared";
 
 export function useDepartments() {
@@ -162,7 +161,7 @@ export function useDeleteSubDepartment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, departmentId }: { id: number; departmentId: number }) => {
+    mutationFn: async ({ id }: { id: number; departmentId: number }) => {
       const res = await fetch(`/api/subdepartments/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json();

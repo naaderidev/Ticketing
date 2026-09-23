@@ -1,0 +1,50 @@
+name: Staging Rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Immutable release identifier expected in staging metrics
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-rehearsal
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify deployed staging release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    env:
+      STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+      STAGING_METRICS_TOKEN: ${{ secrets.STAGING_METRICS_TOKEN }}
+      EXPECTED_DEPLOYMENT_VERSION: ${{ inputs.release_id }}
+      STAGING_RELEASE_SAMPLE_COUNT: "5"
+      STAGING_REQUEST_TIMEOUT_MS: "10000"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Verify staging without mutating it
+        run: node scripts/check-staging-readiness.mjs --output staging-rehearsal.json
+
+      - name: Upload staging rehearsal evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: staging-rehearsal-${{ inputs.release_id }}
+          path: staging-rehearsal.json
+          if-no-files-found: error
+          retention-days: 30

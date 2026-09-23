@@ -11,13 +11,14 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "coverage/**",
     "next-env.d.ts",
   ]),
   {
     rules: {
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/immutability": "off",
-      "@typescript-eslint/no-unused-vars": ["warn", { "caughtErrors": "none" }],
+      "@typescript-eslint/no-unused-vars": ["error", { "caughtErrors": "none" }],
     },
   },
 ]);

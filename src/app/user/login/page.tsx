@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowRight, Smartphone } from "lucide-react"
-import { labels, titles, descriptions, buttons, errors } from "@/lib/strings"
+import { labels, buttons, errors } from "@/lib/strings"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { loginSchema, LoginInput } from "@/lib/validations"
 import { toast } from "sonner"
 import { useUser } from "@/contexts/user-context"
+import { resolvePostLoginRedirect } from "@/lib/route-access-policy"
 
 export default function UserLoginPage() {
   const router = useRouter()
@@ -39,8 +40,9 @@ export default function UserLoginPage() {
         setUser(userData)
         toast.success("ورود با موفقیت انجام شد")
         const params = new URLSearchParams(window.location.search)
-        const redirect = params.get("redirect") || (userData.role === "ADMIN" ? "/admin" : "/user")
-        router.push(redirect)
+        const fallback = userData.role === "ADMIN" ? "/admin" : "/user"
+        const redirect = resolvePostLoginRedirect(params.get("redirect"), fallback)
+        window.location.replace(redirect)
       } else {
         const result = await res.json()
         if (res.status === 404) {
@@ -72,7 +74,7 @@ export default function UserLoginPage() {
           </div>
           <CardTitle className="text-2xl">ورود کاربر</CardTitle>
           <CardDescription>
-            برای مشاهده تیکت‌های خود، شماره موبایل را وارد کنید
+            برای مشاهده درخواست‌های خود، شماره موبایل را وارد کنید
           </CardDescription>
         </CardHeader>
         <CardContent>

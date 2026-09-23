@@ -7,6 +7,11 @@ export interface UserData {
   email?: string;
   birthday?: string;
   role: "USER" | "ADMIN";
+  access?: {
+    roleLabels: string[];
+    staffRoleKeys: string[];
+    organizationRoleKeys: Array<"MANAGER" | "REPRESENTATIVE">;
+  };
 }
 
 export interface DepartmentWithCount {
@@ -34,18 +39,18 @@ export interface FAQItem {
 }
 
 export interface Attachment {
-  id?: string;
+  uploadId: string;
   fileName: string;
   fileSize: number;
   fileType: string;
-  fileUrl: string;
+  expiresAt: string;
 }
 
 export interface NotificationItem {
   id: number;
   message: string;
   isRead: boolean;
-  ticketId: number;
+  ticketId: string;
   recipientType: "USER" | "ADMIN";
   userId: number | null;
   createdAt: string;

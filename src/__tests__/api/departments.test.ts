@@ -1,4 +1,10 @@
 import { getDepartments, createDepartment } from "@/lib/department-service";
+import {
+  requireAuthenticatedUser,
+  requireGlobalPermission,
+} from "@/lib/api-authorization";
+import { errors } from "@/lib/strings";
+import { conflictError } from "@/lib/domain-error";
 
 jest.mock("next/server", () => ({
   NextResponse: {
@@ -14,9 +20,27 @@ jest.mock("@/lib/department-service", () => ({
   createDepartment: jest.fn(),
 }));
 
+jest.mock("@/lib/api-authorization", () => ({
+  requireAuthenticatedUser: jest.fn(),
+  requireGlobalPermission: jest.fn(),
+}));
+
+const authorizedAdmin = {
+  authorized: true as const,
+  value: {
+    id: 1,
+    mobile: "09120000000",
+    firstName: "مدیر",
+    lastName: "آزمایشی",
+    role: "ADMIN" as const,
+  },
+};
+
 describe("Departments API", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (requireGlobalPermission as jest.Mock).mockResolvedValue(authorizedAdmin);
+    (requireAuthenticatedUser as jest.Mock).mockResolvedValue(authorizedAdmin);
   });
 
   describe("GET", () => {
@@ -48,6 +72,28 @@ describe("Departments API", () => {
   });
 
   describe("POST", () => {
+    it("should reject a non-admin user", async () => {
+      (requireGlobalPermission as jest.Mock).mockResolvedValueOnce({
+        authorized: false,
+        response: {
+          status: 403,
+          json: () => Promise.resolve({ error: "دسترسی غیرمجاز" }),
+        },
+      });
+
+      const request = new Request("http://localhost/api/departments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "New Department" }),
+      });
+
+      const { POST } = await import("@/app/api/departments/route");
+      const response = await POST(request);
+
+      expect(response.status).toBe(403);
+      expect(createDepartment).not.toHaveBeenCalled();
+    });
+
     it("should create department successfully", async () => {
       const mockDepartment = { id: 1, name: "New Department" };
       (createDepartment as jest.Mock).mockResolvedValue(mockDepartment);
@@ -83,7 +129,7 @@ describe("Departments API", () => {
 
     it("should handle duplicate department error", async () => {
       (createDepartment as jest.Mock).mockRejectedValue(
-        new Error("این دپارتمان قبلاً ایجاد شده است")
+        conflictError(errors.DEPARTMENT_ALREADY_EXISTS)
       );
 
       const request = new Request("http://localhost/api/departments", {
@@ -98,6 +144,7 @@ describe("Departments API", () => {
 
       expect(response.status).toBe(409);
       expect(data.error).toContain("قبلاً");
+      expect(data.code).toBe("CONFLICT");
     });
   });
 });

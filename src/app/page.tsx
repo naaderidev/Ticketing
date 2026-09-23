@@ -1,151 +1,151 @@
-import Link from "next/link";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { User, Shield, Clock, CheckCircle, MessageSquare } from "lucide-react";
+import {
+  BarChart3,
+  BriefcaseBusiness,
+  Building2,
+  ClipboardCheck,
+  ContactRound,
+  Headset,
+  LifeBuoy,
+  ShieldCheck,
+  User,
+  UserCog,
+} from "lucide-react";
 import Image from "next/image";
-import { labels } from "@/lib/strings";
+import demoAccounts from "@/config/demo-accounts.json";
+import { DemoAccountLoginButton } from "@/components/landing/demo-account-login-button";
+import { formatJalaliDate, toPersianDateDigits } from "@/lib/jalali-date";
+
+const ACCOUNT_ICON_STYLES = [
+  "bg-violet-600",
+  "bg-rose-600",
+  "bg-sky-700",
+  "bg-teal-600",
+  "bg-orange-600",
+  "bg-indigo-600",
+  "bg-emerald-700",
+  "bg-cyan-700",
+  "bg-fuchsia-700",
+  "bg-blue-700",
+  "bg-amber-600",
+  "bg-purple-700",
+] as const;
+
+const PERSONA_ICONS = {
+  SYSTEM_ADMINISTRATOR: ShieldCheck,
+  SUPPORT_MANAGER: Headset,
+  SUPERVISOR: UserCog,
+  SUPPORT_AGENT: LifeBuoy,
+  ACCOUNT_MANAGER: BriefcaseBusiness,
+  AUDITOR: ClipboardCheck,
+  REPORTING_EXPORTER: BarChart3,
+  ORGANIZATION_MANAGER: Building2,
+  ORGANIZATION_REPRESENTATIVE: ContactRound,
+  INDIVIDUAL_CUSTOMER: User,
+} as const;
 
 export default function HomePage() {
+  const currentJalaliYear = toPersianDateDigits(
+    formatJalaliDate(new Date()).slice(0, 4),
+  );
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
-            <Image
-              src="/logo.png"
-              alt="تیکتِ‌تو"
-              className="h-12 w-auto"
-              width={100}
-              height={100}
-            />
+          <Image
+            src="/logo.png"
+            alt="تیکتِ‌تو"
+            className="h-12 w-auto"
+            width={100}
+            height={100}
+            loading="eager"
+          />
           <p className="text-sm text-muted-foreground">
-            سیستم پشتیبانی و مدیریت تیکت
+            سرویس پشتیبانی آنلاین برق‌تو
           </p>
         </div>
       </header>
 
-      <main className="flex flex-1 flex-col items-center justify-center bg-linear-to-b from-muted/40 to-background p-4">
-        <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold tracking-tight">
-            به سیستم <span className="text-indigo-600">تیکتِ‌تو</span>{" "}
-            خوش آمدید
+      <main className="flex flex-1 flex-col items-center bg-slate-50/80 px-4 py-8 dark:bg-background sm:px-6 lg:px-8">
+        <div className="mb-8 max-w-3xl text-center">
+          <span className="mb-2 inline-block text-xs font-bold text-primary">
+            ورود سریع نسخه نمایشی
+          </span>
+          <h1 className="text-3xl font-black tracking-tight text-slate-950 dark:text-foreground sm:text-4xl">
+            به سیستم <span className="text-indigo-600">تیکتِ‌تو</span> خوش آمدید
           </h1>
-          <p className="mt-4 text-lg text-muted-foreground">
-            برای دسترسی به بخش مورد نظر خود، یکی از گزینه‌های زیر را انتخاب کنید
+          <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-muted-foreground sm:text-base">
+            این نسخه برای ارائه آماده شده است؛ با انتخاب هر حساب، مستقیم وارد
+            پنل همان کاربر شوید.
           </p>
         </div>
 
-        <div className="grid w-full max-w-4xl gap-8 md:grid-cols-2">
-          <Link href="/user/login" className="group block cursor-pointer">
-            <Card className="h-full transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-indigo-600 border">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-600 transition-colors">
-                  <User className="h-10 w-10 text-white transition-transform group-hover:scale-110" />
-                </div>
-                <CardTitle className="text-2xl text-slate-900">
-                  {labels.SIDEBAR_USER_PANEL}
-                </CardTitle>
-                <CardDescription className="text-base text-slate-500">
-                  ایجاد و پیگیری تیکت‌های پشتیبانی
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-3 text-sm">
-                    <CheckCircle className="h-4 w-4 text-indigo-600 shrink-0" />
-                    <span>ایجاد تیکت جدید با فلوی ساده</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-sm">
-                    <CheckCircle className="h-4 w-4 text-indigo-600 shrink-0" />
-                    <span>مشاهده لیست تیکت‌ها با فیلتر پیشرفته</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-sm">
-                    <CheckCircle className="h-4 w-4 text-indigo-600 shrink-0" />
-                    <span>پیگیری وضعیت و پاسخ‌ها</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-sm">
-                    <CheckCircle className="h-4 w-4 text-indigo-600 shrink-0" />
-                    <span>امتیازدهی به کیفیت پاسخ‌ها</span>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-          </Link>
+        <section
+          className="w-full max-w-[1680px]"
+          aria-labelledby="demo-accounts-title"
+        >
+          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 id="demo-accounts-title" className="text-xl font-semibold">
+                حساب‌های آماده ورود
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                نقش‌های پشتیبانی، مدیریتی، سازمانی و مشتری با دسترسی مستقل
+              </p>
+            </div>
+            <span className="text-xs text-muted-foreground">۱۲ حساب دمو</span>
+          </div>
 
-          <Link href="/admin" className="group block cursor-pointer">
-            <Card className="h-full transition-all duration-300 hover:shadow-xl hover:scale-[1.02] hover:border-indigo-600 border">
-              <CardHeader className="text-center pb-4">
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-indigo-600 transition-colors">
-                  <Shield className="h-10 w-10 text-white transition-transform group-hover:scale-110" />
-                </div>
-                <CardTitle className="text-2xl text-slate-900">
-                  {labels.SIDEBAR_ADMIN_PANEL}
-                </CardTitle>
-                <CardDescription className="text-base text-slate-500">
-                  مدیریت تیکت‌ها و تنظیمات سیستم
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-3 text-sm">
-                    <CheckCircle className="h-4 w-4 text-indigo-600 shrink-0" />
-                    <span>مدیریت دپارتمان‌ها و ساب‌دپارتمان‌ها</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-sm">
-                    <CheckCircle className="h-4 w-4 text-indigo-600 shrink-0" />
-                    <span>ایجاد و ویرایش پرسش و پاسخ متداول</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-sm">
-                    <CheckCircle className="h-4 w-4 text-indigo-600 shrink-0" />
-                    <span>پاسخ به تیکت‌ها با پیام‌های آماده</span>
-                  </li>
-                  <li className="flex items-center gap-3 text-sm">
-                    <CheckCircle className="h-4 w-4 text-indigo-600 shrink-0" />
-                    <span>انتقال و بستن تیکت‌ها</span>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+            {demoAccounts.map((account, index) => {
+              const AccountIcon =
+                PERSONA_ICONS[
+                  account.personaKey as keyof typeof PERSONA_ICONS
+                ] ?? User;
 
-        <div className="mt-16 grid w-full max-w-4xl gap-6 md:grid-cols-3">
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-              <Clock className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold">پاسخ سریع</h3>
-            <p className="text-sm text-muted-foreground">
-              تیکت‌های شما در کوتاه‌ترین زمان ممکن بررسی می‌شوند
-            </p>
+              return (
+                <article key={account.key}>
+                  <Card
+                    className="group flex h-full min-h-60 flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 bg-white py-0 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-lg dark:border-border dark:bg-card"
+                  >
+                    <CardHeader className="items-center p-5 pb-3 text-center">
+                      <div
+                        className={`mb-2 flex h-12 w-12 items-center justify-center rounded-full text-white shadow-sm ${ACCOUNT_ICON_STYLES[index % ACCOUNT_ICON_STYLES.length]}`}
+                      >
+                        <AccountIcon className="h-6 w-6" aria-hidden="true" />
+                      </div>
+                      <h3 className="text-base font-black text-slate-950 dark:text-foreground">
+                        {account.displayName}
+                      </h3>
+                      <CardDescription className="text-xs">
+                        {account.roleTitle}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-1 flex-col p-4 pt-1">
+                      <p className="mb-4 min-h-12 text-center text-xs leading-6 text-slate-600 dark:text-muted-foreground">
+                        {account.roleDescription}
+                      </p>
+                      <DemoAccountLoginButton
+                        accountKey={account.key}
+                        displayName={account.displayName}
+                      />
+                    </CardContent>
+                  </Card>
+                </article>
+              );
+            })}
           </div>
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-              <MessageSquare className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold">ارتباط مستقیم</h3>
-            <p className="text-sm text-muted-foreground">
-              امکان گفتگوی مستقیم با تیم پشتیبانی
-            </p>
-          </div>
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-              <CheckCircle className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold">پیگیری آسان</h3>
-            <p className="text-sm text-muted-foreground">
-              مشاهده وضعیت لحظه‌ای تیکت‌ها
-            </p>
-          </div>
-        </div>
+        </section>
       </main>
 
       <footer className="border-t py-6 text-center text-sm text-muted-foreground">
-        سیستم تیکتینگ © {new Date().getFullYear()}
+        سرویس پشتیبانی آنلاین برق‌تو © {currentJalaliYear}
       </footer>
     </div>
   );

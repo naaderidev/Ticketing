@@ -1,4 +1,10 @@
 import "@testing-library/jest-dom";
+import { TextDecoder, TextEncoder } from "util";
+
+process.env.JWT_SECRET = "test-only-secret-with-at-least-32-characters";
+process.env.SECURITY_HASH_SECRET =
+  "test-only-security-hash-secret-with-at-least-32-characters";
+Object.assign(global, { TextDecoder, TextEncoder });
 
 // Mock localStorage
 const localStorageMock = {
@@ -43,7 +49,7 @@ class MockRequest {
   url: string;
   method: string;
   headers: Headers;
-  body: any;
+  body: BodyInit | null | undefined;
 
   constructor(url: string, init?: RequestInit) {
     this.url = url;
@@ -53,20 +59,25 @@ class MockRequest {
   }
 
   async json() {
-    return JSON.parse(this.body);
+    if (typeof this.body !== "string") {
+      throw new TypeError("MockRequest JSON body must be a string");
+    }
+    return JSON.parse(this.body) as unknown;
   }
 }
 
 class MockNextResponse {
   status: number;
-  body: any;
+  body: unknown;
+  headers: Headers;
 
-  constructor(body: any, init?: ResponseInit) {
+  constructor(body: unknown, init?: ResponseInit) {
     this.body = body;
     this.status = init?.status || 200;
+    this.headers = new Headers(init?.headers);
   }
 
-  static json(body: any, init?: ResponseInit) {
+  static json(body: unknown, init?: ResponseInit) {
     return new MockNextResponse(body, init);
   }
 

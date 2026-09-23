@@ -26,14 +26,9 @@ import {
 import { Users, Send, Plus } from "lucide-react";
 import { labels, titles, buttons, errors } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
-import { useUsers, useCreateUser, useUpdateUserRole } from "@/hooks";
+import { useUsers, useCreateUser } from "@/hooks";
 import { useForm, Controller } from "react-hook-form";
-import dynamic from "next/dynamic";
-
-const DatePicker = dynamic(() => import("react-multi-date-picker"), { ssr: false });
-
-import persian from "react-date-object/calendars/persian";
-import persian_fa from "react-date-object/locales/persian_fa";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createUserSchema, CreateUserInput } from "@/lib/validations";
 import { toast } from "sonner";
@@ -41,10 +36,9 @@ import { toast } from "sonner";
 export default function AdminUsersPage() {
   const { data: users = [], isLoading } = useUsers();
   const createUser = useCreateUser();
-  const updateUserRole = useUpdateUserRole();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  const { register, handleSubmit, reset, control, watch, formState: { errors: formErrors, isValid } } = useForm<CreateUserInput>({
+  const { register, handleSubmit, reset, control, formState: { errors: formErrors, isValid } } = useForm<CreateUserInput>({
     resolver: zodResolver(createUserSchema),
     mode: "onChange",
   });
@@ -125,9 +119,15 @@ export default function AdminUsersPage() {
                           <TableCell className="text-center">{user.email || "-"}</TableCell>
                           <TableCell className="text-center">{user.birthday ? toPersianDigits(user.birthday) : "-"}</TableCell>
                           <TableCell className="text-center">
-                            <Badge variant={user.role === "ADMIN" ? "default" : "secondary"}>
-                              {user.role === "ADMIN" ? "مدیر" : "کاربر"}
-                            </Badge>
+                            <div className="flex flex-wrap justify-center gap-1">
+                              {(user.access?.roleLabels ?? [
+                                user.role === "ADMIN" ? "کارمند سامانه" : "کاربر فردی",
+                              ]).map((roleLabel) => (
+                                <Badge key={roleLabel} variant="secondary">
+                                  {roleLabel}
+                                </Badge>
+                              ))}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-2">
@@ -137,27 +137,6 @@ export default function AdminUsersPage() {
                                   {buttons.SEND_TICKET}
                                 </Button>
                               </Link>
-                              <Button
-                                size="sm"
-                                variant={user.role === "ADMIN" ? "outline" : "secondary"}
-                                onClick={() => {
-                                  const newRole = user.role === "ADMIN" ? "USER" : "ADMIN";
-                                  updateUserRole.mutate(
-                                    { userId: user.id, role: newRole },
-                                    {
-                                      onSuccess: () => {
-                                        toast.success(`نقش کاربر به ${newRole === "ADMIN" ? "مدیر" : "کاربر"} تغییر کرد`);
-                                      },
-                                      onError: (err: Error) => {
-                                        toast.error(err.message || "خطا در تغییر نقش");
-                                      },
-                                    }
-                                  );
-                                }}
-                                disabled={updateUserRole.isPending}
-                              >
-                                {user.role === "ADMIN" ? "تبدیل به کاربر" : "تبدیل به مدیر"}
-                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -245,19 +224,11 @@ export default function AdminUsersPage() {
                   control={control}
                   name="birthday"
                   render={({ field }) => (
-                    <DatePicker
-                      containerClassName="w-full"
-                      style={{ width: "100%" }}
-                      inputClass="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    <PersianDatePicker
                       value={field.value || ""}
-                      onChange={(date) => {
-                        field.onChange(date && !Array.isArray(date) ? date.format("YYYY/MM/DD") : "");
-                      }}
-                      calendar={persian}
-                      locale={persian_fa}
-                      format="YYYY/MM/DD"
-                      calendarPosition="bottom-right"
+                      onChange={field.onChange}
                       placeholder="انتخاب تاریخ تولد"
+                      aria-label={labels.USER_BIRTHDAY}
                     />
                   )}
                 />

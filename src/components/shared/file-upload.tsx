@@ -7,21 +7,12 @@ import { Upload, X, FileText, Image, File } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { labels, errors } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
+import type { PendingAttachment } from "@/types/ticket";
 
 interface FileUploadProps {
-  onUpload: (file: {
-    fileName: string;
-    fileSize: number;
-    fileType: string;
-    fileUrl: string;
-  }) => void;
-  onRemove?: (fileUrl: string) => void;
-  files?: {
-    fileName: string;
-    fileSize: number;
-    fileType: string;
-    fileUrl: string;
-  }[];
+  onUpload: (file: PendingAttachment) => void;
+  onRemove?: (uploadId: string) => void;
+  files?: PendingAttachment[];
   disabled?: boolean;
   className?: string;
 }
@@ -60,6 +51,7 @@ export function FileUpload({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const uploadDisabled = disabled || files.length >= 10;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,8 +59,15 @@ export function FileUpload({
 
     setError(null);
 
+    if (file.size === 0) {
+      setError(errors.FILE_EMPTY);
+      e.target.value = "";
+      return;
+    }
+
     if (file.size > MAX_FILE_SIZE) {
       setError(errors.FILE_TOO_LARGE);
+      e.target.value = "";
       return;
     }
 
@@ -88,7 +87,7 @@ export function FileUpload({
       };
 
       xhr.onload = () => {
-        if (xhr.status === 200) {
+        if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const data = JSON.parse(xhr.responseText);
             onUpload(data);
@@ -97,7 +96,12 @@ export function FileUpload({
             setError(errors.UPLOAD_FILE);
           }
         } else {
-          setError(errors.UPLOAD_FILE);
+          try {
+            const data = JSON.parse(xhr.responseText);
+            setError(data.error || errors.UPLOAD_FILE);
+          } catch {
+            setError(errors.UPLOAD_FILE);
+          }
         }
         setIsUploading(false);
       };
@@ -119,6 +123,24 @@ export function FileUpload({
     }
   };
 
+  const handleRemove = async (uploadId: string) => {
+    setError(null);
+    try {
+      const response = await fetch(`/api/upload/${uploadId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || errors.DELETE_FILE);
+      }
+      onRemove?.(uploadId);
+    } catch (removeError) {
+      setError(
+        removeError instanceof Error ? removeError.message : errors.DELETE_FILE
+      );
+    }
+  };
+
   const getFileIcon = (fileType: string) => {
     const Icon = FILE_ICONS[fileType] || File;
     return Icon;
@@ -129,15 +151,15 @@ export function FileUpload({
       <div
         className={cn(
           "flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors",
-          disabled
+          uploadDisabled
             ? "cursor-not-allowed opacity-50"
             : "cursor-pointer hover:border-primary/50 hover:bg-muted/50",
         )}
-        onClick={() => !disabled && inputRef.current?.click()}
+        onClick={() => !uploadDisabled && inputRef.current?.click()}
       >
         <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {disabled
+          {uploadDisabled
             ? labels.FILE_NO_UPLOAD
             : labels.FILE_CLICK_TO_UPLOAD}
         </p>
@@ -151,7 +173,8 @@ export function FileUpload({
         type="file"
         className="hidden"
         onChange={handleFileChange}
-        disabled={disabled || isUploading}
+        disabled={uploadDisabled || isUploading}
+        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.mp3,.wav,.ogg,.mp4,.webm"
       />
 
       {isUploading && (
@@ -167,11 +190,11 @@ export function FileUpload({
 
       {files.length > 0 && (
         <div className="space-y-2">
-          {files.map((file, index) => {
+          {files.map((file) => {
             const Icon = getFileIcon(file.fileType);
             return (
               <div
-                key={index}
+                key={file.uploadId}
                 className="flex items-center gap-3 rounded-lg border p-3"
               >
                 <Icon className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -189,7 +212,7 @@ export function FileUpload({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 shrink-0"
-                    onClick={() => onRemove(file.fileUrl)}
+                    onClick={() => void handleRemove(file.uploadId)}
                   >
                     <X className="h-4 w-4" />
                   </Button>

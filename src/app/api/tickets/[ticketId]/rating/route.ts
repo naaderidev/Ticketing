@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import { rateTicket } from "@/lib/ticket-service";
 import { errors } from "@/lib/strings";
 import { ratingSchema } from "@/lib/validations";
+import { requireTicketPermission } from "@/lib/api-authorization";
+import { handleApiError, parseJsonBody, parseTicketIdentifier } from "@/lib/api-validation";
+import { AUTHENTICATED_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export async function POST(
   request: Request,
@@ -9,22 +12,21 @@ export async function POST(
 ) {
   try {
     const { ticketId } = await params;
-    const body = await request.json();
-    const result = ratingSchema.safeParse(body);
-    if (!result.success) {
-      const firstError = result.error.issues[0]?.message || "داده‌های ورودی معتبر نیستند";
-      return NextResponse.json({ error: firstError }, { status: 400 });
-    }
-    const ratingResult = await rateTicket(ticketId, result.data.rating);
-    return NextResponse.json(ratingResult);
+    const parsedTicketId = parseTicketIdentifier(ticketId);
+    if (!parsedTicketId.success) return parsedTicketId.response;
+    const access = await requireTicketPermission(parsedTicketId.data, "rate", {
+      rateLimit: AUTHENTICATED_MUTATION_LIMIT,
+    });
+    if (!access.authorized) return access.response;
+    const body = await parseJsonBody(request, ratingSchema);
+    if (!body.success) return body.response;
+    const ratingResult = await rateTicket(
+      parsedTicketId.data,
+      body.data.rating,
+      access.value.user.id
+    );
+    return apiJsonResponse(ratingResult);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : errors.CREATE_RATING;
-    const status = message.includes("یافت نشد")
-      ? 404
-      : message.includes("الزامی") || message.includes("قبلاً")
-        ? 400
-        : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.CREATE_RATING, "Error creating rating");
   }
 }

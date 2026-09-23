@@ -14,11 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Send, User, UserPlus } from "lucide-react";
+import { Send, UserPlus } from "lucide-react";
 import { labels, titles, descriptions, buttons, placeholders, errors, misc } from "@/lib/strings";
 import { toPersianDigits } from "@/lib/format";
 import { useUsers, useDepartments, useSubDepartments, useCreateTicket } from "@/hooks";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createTicketSchema, CreateTicketInput } from "@/lib/validations";
 import { toast } from "sonner";
@@ -42,11 +42,13 @@ function AdminNewTicketContent() {
 
   const [selectedUserId, setSelectedUserId] = useState<string>(initialUserId || "");
 
-  const { register, handleSubmit, watch, setValue, formState: { errors: formErrors } } = useForm<CreateTicketInput>({
+  const { register, handleSubmit, control, setValue, formState: { errors: formErrors } } = useForm<CreateTicketInput>({
     resolver: zodResolver(createTicketSchema),
   });
 
-  const selectedDepartmentId = watch("departmentId");
+  const selectedDepartmentId = useWatch({ control, name: "departmentId" });
+  const selectedSubDepartmentId = useWatch({ control, name: "subDepartmentId" });
+  const message = useWatch({ control, name: "message" });
 
   const { data: subDepartments = [] } = useSubDepartments(
     selectedDepartmentId ? Number.parseInt(selectedDepartmentId) : 0,
@@ -61,7 +63,6 @@ function AdminNewTicketContent() {
     }
     createTicket.mutate(
       {
-        userName: "مدیر",
         subject: data.subject.trim(),
         message: data.message.trim(),
         departmentId: data.departmentId,
@@ -131,7 +132,7 @@ function AdminNewTicketContent() {
                   <div className="space-y-2">
                     <Label>{labels.TICKET_DEPARTMENT_SELECT} *</Label>
                     <Select
-                      value={watch("departmentId")}
+                      value={selectedDepartmentId}
                       onValueChange={(val) => setValue("departmentId", val)}
                     >
                       <SelectTrigger>
@@ -153,7 +154,7 @@ function AdminNewTicketContent() {
                   <div className="space-y-2">
                     <Label>{labels.TICKET_SUB_DEPARTMENT_SELECT} *</Label>
                     <Select
-                      value={watch("subDepartmentId")}
+                      value={selectedSubDepartmentId}
                       onValueChange={(val) => setValue("subDepartmentId", val)}
                       disabled={!selectedDepartmentId}
                     >
@@ -195,9 +196,10 @@ function AdminNewTicketContent() {
                     className="min-h-37.5"
                     {...register("message")}
                     maxLength={1000}
+                    showCharacterCount={false}
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{toPersianDigits((watch("message") || "").length)} / ۱۰۰۰</span>
+                    <span>{toPersianDigits((message || "").length)} / ۱۰۰۰</span>
                   </div>
                   {formErrors.message && (
                     <p className="text-destructive text-sm">{formErrors.message.message}</p>

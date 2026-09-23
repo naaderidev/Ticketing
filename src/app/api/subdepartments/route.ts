@@ -1,15 +1,17 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import { getAllSubDepartments } from "@/lib/department-service";
 import { errors } from "@/lib/strings";
+import { requireAuthenticatedUser } from "@/lib/api-authorization";
+import { handleApiError } from "@/lib/api-validation";
 
 export async function GET() {
   try {
+    const auth = await requireAuthenticatedUser();
+    if (!auth.authorized) return auth.response;
+
     const subDepartments = await getAllSubDepartments();
-    return NextResponse.json(subDepartments);
+    return apiJsonResponse(subDepartments);
   } catch (error) {
-    return NextResponse.json(
-      { error: errors.FETCH_SUB_DEPARTMENTS },
-      { status: 500 }
-    );
+    return handleApiError(error, errors.FETCH_SUB_DEPARTMENTS, "Error fetching sub-departments");
   }
 }

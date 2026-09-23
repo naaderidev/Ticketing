@@ -1,29 +1,35 @@
-import { NextResponse } from "next/server";
+import { apiJsonResponse } from "@/lib/api-date-contract";
 import {
   getMessageById,
   updateMessage,
   deleteMessage,
 } from "@/lib/message-service";
 import { errors } from "@/lib/strings";
+import { requireGlobalPermission } from "@/lib/api-authorization";
+import { updatePredefinedMessageSchema } from "@/lib/validations";
+import { apiError, handleApiError, parseJsonBody, parsePositiveInteger } from "@/lib/api-validation";
+import { AUTHENTICATED_MUTATION_LIMIT } from "@/lib/rate-limit";
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireGlobalPermission("knowledge.article.manage");
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    const message = await getMessageById(parseInt(id));
+    const parsedId = parsePositiveInteger(id, "شناسه پیام");
+    if (!parsedId.success) return parsedId.response;
+    const message = await getMessageById(parsedId.data);
 
     if (!message) {
-      return NextResponse.json({ error: errors.MESSAGE_NOT_FOUND }, { status: 404 });
+      return apiError(errors.MESSAGE_NOT_FOUND, 404, "NOT_FOUND");
     }
 
-    return NextResponse.json(message);
+    return apiJsonResponse(message);
   } catch (error) {
-    return NextResponse.json(
-      { error: errors.FETCH_MESSAGE },
-      { status: 500 }
-    );
+    return handleApiError(error, errors.FETCH_MESSAGE, "Error fetching message");
   }
 }
 
@@ -32,21 +38,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireGlobalPermission("knowledge.article.manage", { rateLimit: AUTHENTICATED_MUTATION_LIMIT });
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    const body = await request.json();
-    const updated = await updateMessage(parseInt(id), body);
-    return NextResponse.json(updated);
+    const parsedId = parsePositiveInteger(id, "شناسه پیام");
+    if (!parsedId.success) return parsedId.response;
+    const body = await parseJsonBody(request, updatePredefinedMessageSchema);
+    if (!body.success) return body.response;
+    const updated = await updateMessage(parsedId.data, body.data);
+    return apiJsonResponse(updated);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : errors.UPDATE_MESSAGE;
-    const status = message.includes("یافت نشد")
-      ? 404
-      : message.includes("الزامی")
-        ? 400
-        : message.includes("قبلاً")
-          ? 409
-          : 500;
-    return NextResponse.json({ error: message }, { status });
+    return handleApiError(error, errors.UPDATE_MESSAGE, "Error updating message");
   }
 }
 
@@ -55,10 +58,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireGlobalPermission("knowledge.article.manage", { rateLimit: AUTHENTICATED_MUTATION_LIMIT });
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
-    await deleteMessage(parseInt(id));
-    return NextResponse.json({ message: "پیام با موفقیت حذف شد" });
+    const parsedId = parsePositiveInteger(id, "شناسه پیام");
+    if (!parsedId.success) return parsedId.response;
+    await deleteMessage(parsedId.data);
+    return apiJsonResponse({ message: "پیام با موفقیت حذف شد" });
   } catch (error) {
-    return NextResponse.json(      { error: errors.DELETE_MESSAGE }, { status: 500 });
+    return handleApiError(error, errors.DELETE_MESSAGE, "Error deleting message");
   }
 }

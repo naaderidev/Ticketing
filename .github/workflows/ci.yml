@@ -1,0 +1,131 @@
+name: Demo CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: mysql://ci_user:ci_password@127.0.0.1:3306/ticketing_ci
+  DEMO_MODE: "true"
+  NEXT_PUBLIC_DEMO_MODE: "true"
+  ALLOW_DEMO_DATABASE_RESET: "true"
+  DEMO_DATABASE_RESET_NAME: ticketing_ci
+  APP_ORIGIN: http://127.0.0.1:3000
+  DEPLOYMENT_VERSION: ${{ github.sha }}
+  JWT_SECRET: ci-demo-jwt-secret-with-at-least-32-characters
+  SECURITY_HASH_SECRET: ci-demo-hash-secret-with-at-least-32-characters
+  METRICS_TOKEN: ci-demo-metrics-token-with-at-least-32-characters
+  SLA_MAINTENANCE_TOKEN: ci-demo-sla-token-with-at-least-32-characters
+  REPORTING_MAINTENANCE_TOKEN: ci-demo-reporting-token-with-at-least-32-characters
+  ATTACHMENT_CLEANUP_TOKEN: ci-demo-cleanup-token-with-at-least-32-characters
+  ATTACHMENT_STORAGE_DRIVER: filesystem
+  ATTACHMENT_LOCAL_STORAGE_PATH: .local-data/ci-attachments
+  ATTACHMENT_SCAN_MODE: disabled
+  REPORTING_ROLLOUT_STAGE: GENERAL
+  REPORTING_CANARY_USER_IDS: ""
+  FEATURE_ORGANIZATION_CONTEXT_ENABLED: "true"
+  FEATURE_SUPPORT_V2_READ_ENABLED: "true"
+  FEATURE_SUPPORT_V2_WRITE_ENABLED: "true"
+  FEATURE_AGENT_WORKSPACE_V2_ENABLED: "true"
+  FEATURE_SLA_ENFORCEMENT_ENABLED: "true"
+  FEATURE_OUTBOX_DISPATCH_ENABLED: "true"
+  FEATURE_REPORTING_PROJECTION_ENABLED: "true"
+  FEATURE_REPORTING_API_ENABLED: "true"
+  FEATURE_AUTOMATED_RESOLUTION_ENABLED: "true"
+  FEATURE_TRANSACTION_VOLUME_INGESTION_ENABLED: "true"
+  FEATURE_RECURRING_PROBLEM_DETECTION_ENABLED: "true"
+  FEATURE_BUSINESS_REFERENCE_INTEGRATIONS_ENABLED: "true"
+  FEATURE_CUSTOMER_EXPERIENCE_V2_ENABLED: "true"
+  REPORTING_PROJECTION_BATCH_SIZE: "100"
+  REPORTING_PROJECTION_LEASE_SECONDS: "120"
+  REPORTING_REBUILD_MAX_EVENTS: "100000"
+  REPORTING_REBUILD_SLEEP_MS: "0"
+  SLA_JOB_BATCH_SIZE: "100"
+  SLA_JOB_LOCK_SECONDS: "120"
+  OUTBOX_MAX_ATTEMPTS: "5"
+
+jobs:
+  quality:
+    name: Build, test and seed verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mysql:
+        image: mysql:8.4@sha256:3466ba4a4828aa8d46fb7c3bc16b67b781c98413cf4ea0fac6feaa6e881faa26
+        env:
+          MYSQL_DATABASE: ticketing_ci
+          MYSQL_USER: ci_user
+          MYSQL_PASSWORD: ci_password
+          MYSQL_ROOT_PASSWORD: root_ci_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --user=root --password=root_ci_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Rebuild and seed demo database
+        run: npm run db:bootstrap-demo
+
+      - name: Verify demo accounts and dashboard data
+        run: |
+          npm run verify:demo-accounts
+          npm run verify:reporting-demo-data
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Run test suite
+        run: npm run test:ci
+
+      - name: Build production-demo bundle
+        run: npm run build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Scan commits for leaked credentials
+        uses: trufflesecurity/trufflehog@20652fbbdefffcdaa493a5bf57ab2ac6b1db715b # v3.97.1
+        with:
+          extra_args: --results=verified,unknown

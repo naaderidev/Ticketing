@@ -42,8 +42,8 @@ export const labels = {
   FAQ_ANSWER: "پاسخ *",
   FAQ_NEW: "پرسش جدید",
   FAQ_FIRST: "ایجاد اولین پرسش",
-  FAQ_DEPARTMENT: "دپارتمان *",
-  FAQ_SUB_DEPARTMENT: "ساب‌دپارتمان",
+  FAQ_DEPARTMENT: "حوزه خدمت *",
+  FAQ_SUB_DEPARTMENT: "موضوع",
 
   // Predefined Message
   MESSAGE_TITLE: "عنوان *",
@@ -84,13 +84,13 @@ export const labels = {
   SEARCH: "جستجو",
   SEARCH_PLACEHOLDER: "جستجو در عنوان یا متن...",
   FILTER_STATUS: "وضعیت",
-  FILTER_DEPARTMENT: "دپارتمان",
-  FILTER_SUB_DEPARTMENT: "ساب‌دپارتمان",
+  FILTER_DEPARTMENT: "حوزه خدمت",
+  FILTER_SUB_DEPARTMENT: "موضوع",
   FILTER_DATE_FROM: "از تاریخ",
   FILTER_DATE_TO: "تا تاریخ",
   FILTER_ALL_STATUS: "همه وضعیت‌ها",
-  FILTER_ALL_DEPARTMENTS: "همه دپارتمان‌ها",
-  FILTER_ALL_SUB_DEPARTMENTS: "همه ساب‌دپارتمان‌ها",
+  FILTER_ALL_DEPARTMENTS: "همه حوزه‌های خدمت",
+  FILTER_ALL_SUB_DEPARTMENTS: "همه موضوع‌ها",
   FILTER_CLEAR: "پاک کردن فیلترها",
   FILTER_SEARCH_TITLE: "جستجو و فیلتر",
 
@@ -135,13 +135,13 @@ export const labels = {
   TRANSFER_DESCRIPTION: "دپارتمان و ساب‌دپارتمان جدید را انتخاب کنید",
 
   // Navigation
-  NAV_MY_TICKETS: "تیکت‌های من",
-  NAV_NEW_TICKET: "تیکت جدید",
-  NAV_TICKETS: "تیکت‌ها",
+  NAV_MY_TICKETS: "درخواست‌های من",
+  NAV_NEW_TICKET: "ثبت درخواست",
+  NAV_TICKETS: "درخواست‌ها",
   NAV_USERS: "کاربران",
   NAV_DEPARTMENTS: "دپارتمان‌ها",
-  NAV_FAQ: "پرسش و پاسخ",
-  NAV_MESSAGES: "پیام‌های پیش‌فرض",
+  NAV_FAQ: "پایگاه دانش",
+  NAV_MESSAGES: "پاسخ‌های آماده",
   NAV_NOTIFICATIONS: "نوتیفیکیشن‌ها",
 
   // Sidebar

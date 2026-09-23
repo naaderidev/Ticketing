@@ -41,10 +41,20 @@ export const errors = {
   SHORT_CODE_INVALID: "شورت‌کد فقط باید شامل حروف انگلیسی، اعداد و زیرخط باشد",
   SHORT_CODE_EXISTS: "شورت‌کد قبلاً استفاده شده",
 
+  // Notification
+  NOTIFICATION_NOT_FOUND: "اعلان یافت نشد",
+
   // File Upload
   FILE_NOT_SENT: "فایل ارسال نشد",
+  FILE_EMPTY: "فایل خالی مجاز نیست",
+  FILE_NAME_INVALID: "نام فایل معتبر نیست",
   FILE_TOO_LARGE: "حجم فایل نباید بیشتر از 5 مگابایت باشد",
   FILE_TYPE_NOT_SUPPORTED: "نوع فایل پشتیبانی نمی‌شود",
+  FILE_CONTENT_INVALID: "محتوا یا پسوند فایل معتبر نیست",
+  FILE_MALWARE_DETECTED: "فایل مخرب شناسایی شد",
+  FILE_PENDING_QUOTA_EXCEEDED: "سهمیه فایل‌های در انتظار تکمیل شده است",
+  FILE_REFERENCE_INVALID: "فایل پیوست معتبر یا در دسترس نیست",
+  FILE_NOT_FOUND: "فایل یافت نشد",
 
   // API Generic Errors
   FETCH_USERS: "خطا در دریافت کاربران",
@@ -83,6 +93,8 @@ export const errors = {
   UPDATE_NOTIFICATION: "خطا در بروزرسانی نوتیفیکیشن",
   UPDATE_NOTIFICATIONS: "خطا در بروزرسانی نوتیفیکیشن‌ها",
   UPLOAD_FILE: "خطا در آپلود فایل",
+  DOWNLOAD_FILE: "خطا در دریافت فایل",
+  DELETE_FILE: "خطا در حذف فایل",
   FILL_REQUIRED_FIELDS: "لطفاً تمامی فیلدها را پر کنید",
   VALID_MOBILE: "شماره موبایل معتبر نیست",
   ENTER_MOBILE: "شماره موبایل را وارد کنید",

@@ -9,12 +9,21 @@ import { LogOut, LayoutDashboard } from "lucide-react";
 import Image from "next/image";
 import { buttons } from "@/lib/strings";
 import { useUser } from "@/contexts/user-context";
+import { PartyContextSwitcher } from "./party-context-switcher";
 
 interface HeaderProps {
   showBack?: boolean;
   backHref?: string;
   recipientType?: "USER" | "ADMIN";
   panelType?: "user" | "admin";
+  organizationContextEnabled?: boolean;
+  workspaceEnabled?: boolean;
+  supportCatalogEnabled?: boolean;
+  reportingEnabled?: boolean;
+  organizationManagementEnabled?: boolean;
+  knowledgeEnabled?: boolean;
+  userManagementEnabled?: boolean;
+  roleLabels?: string[];
 }
 
 export function Header({
@@ -22,6 +31,14 @@ export function Header({
   backHref = "/",
   recipientType,
   panelType,
+  organizationContextEnabled = false,
+  workspaceEnabled = false,
+  supportCatalogEnabled = false,
+  reportingEnabled = false,
+  organizationManagementEnabled = false,
+  knowledgeEnabled = false,
+  userManagementEnabled = false,
+  roleLabels = [],
 }: Readonly<HeaderProps>) {
   const pathname = usePathname();
   const isLoginPage = pathname === "/user/login" || pathname === "/user/login/";
@@ -32,7 +49,19 @@ export function Header({
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-2">
-          {panelType && <MobileSidebar type={panelType} />}
+          {panelType && (
+            <MobileSidebar
+              type={panelType}
+              organizationContextEnabled={organizationContextEnabled}
+              workspaceEnabled={workspaceEnabled}
+              supportCatalogEnabled={supportCatalogEnabled}
+              reportingEnabled={reportingEnabled}
+              organizationManagementEnabled={organizationManagementEnabled}
+              knowledgeEnabled={knowledgeEnabled}
+              userManagementEnabled={userManagementEnabled}
+              roleLabels={roleLabels}
+            />
+          )}
           {showBack && (
             <Link href={backHref}>
               <Image
@@ -41,12 +70,19 @@ export function Header({
                 className="h-12 w-auto"
                 width={100}
                 height={100}
+                loading="eager"
               />
             </Link>
           )}
         </div>
 
         <div className="flex items-center gap-2">
+          {!isLoginPage &&
+            recipientType &&
+            panelType === "user" &&
+            organizationContextEnabled && (
+            <PartyContextSwitcher />
+            )}
           {!isLoginPage && recipientType && (
             <Link href={dashboardHref}>
               <Button variant="ghost" size="sm">

@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useEffect, useCallback, ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import { UserData } from "@/types/shared";
 
 interface UserContextType {
@@ -12,52 +14,66 @@ interface UserContextType {
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
+const SESSION_OPTIONAL_PATHS = new Set([
+  "/",
+  "/forbidden",
+  "/unauthorized",
+  "/user/login",
+  "/user/signup",
+]);
+const CURRENT_USER_QUERY_KEY = ["current-user"] as const;
+const SESSION_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+async function requestCurrentUser(): Promise<UserData | null> {
+  const response = await fetch("/api/users/me", { cache: "no-store" });
+  if (response.status === 401) return null;
+  if (!response.ok) {
+    throw new Error(`Current user request failed with status ${response.status}`);
+  }
+  return response.json() as Promise<UserData>;
+}
+
 export function UserProvider({ children }: { children: ReactNode }) {
-  const [user, setUserState] = useState<UserData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const pathname = usePathname();
+  const queryClient = useQueryClient();
+  const shouldLoadSession = !SESSION_OPTIONAL_PATHS.has(pathname);
+  const { data: user = null, isLoading } = useQuery({
+    queryKey: CURRENT_USER_QUERY_KEY,
+    queryFn: requestCurrentUser,
+    enabled: shouldLoadSession,
+    retry: false,
+  });
 
   useEffect(() => {
-    fetchUser();
-    const refreshInterval = setInterval(refreshToken, 6 * 60 * 60 * 1000); // Every 6 hours
-    return () => clearInterval(refreshInterval);
-  }, []);
+    if (!shouldLoadSession) return;
 
-  const fetchUser = async () => {
-    try {
-      const res = await fetch("/api/users/me");
-      if (res.ok) {
-        const userData = await res.json();
-        setUserState(userData);
-      } else {
-        setUserState(null);
+    async function refreshToken() {
+      try {
+        await fetch("/api/users/refresh", { method: "POST" });
+      } catch {
+        // A later authenticated request will revalidate the session.
       }
-    } catch {
-      setUserState(null);
-    } finally {
-      setIsLoading(false);
     }
-  };
 
-  const refreshToken = async () => {
-    try {
-      await fetch("/api/users/refresh", { method: "POST" });
-    } catch {
-      // Silent fail - will retry on next interval
-    }
-  };
+    const refreshInterval = setInterval(
+      () => void refreshToken(),
+      SESSION_REFRESH_INTERVAL_MS,
+    );
+    return () => clearInterval(refreshInterval);
+  }, [shouldLoadSession]);
 
   const setUser = useCallback((newUser: UserData | null) => {
-    setUserState(newUser);
-  }, []);
+    queryClient.setQueryData(CURRENT_USER_QUERY_KEY, newUser);
+  }, [queryClient]);
 
   const logout = useCallback(async () => {
     try {
       await fetch("/api/users/logout", { method: "POST" });
     } finally {
-      setUserState(null);
-      window.location.href = "/user/login";
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+      window.location.replace("/");
     }
-  }, []);
+  }, [queryClient]);
 
   return (
     <UserContext.Provider value={{ user, setUser, isLoading, logout }}>

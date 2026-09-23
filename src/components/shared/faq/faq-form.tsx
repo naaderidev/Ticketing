@@ -175,6 +175,7 @@ export function FAQForm({
                 className="min-h-[150px]"
                 {...registerCreate("answer")}
                 maxLength={FAQ_ANSWER_MAX}
+                showCharacterCount={false}
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{toPersianDigits((watchCreate("answer") || "").length)} / {toPersianDigits(FAQ_ANSWER_MAX)}</span>
@@ -229,6 +230,7 @@ export function FAQForm({
                 className="min-h-[150px]"
                 {...registerEdit("answer")}
                 maxLength={FAQ_ANSWER_MAX}
+                showCharacterCount={false}
               />
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{toPersianDigits((watchEdit("answer") || "").length)} / {toPersianDigits(FAQ_ANSWER_MAX)}</span>

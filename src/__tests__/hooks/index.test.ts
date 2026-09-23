@@ -5,6 +5,7 @@ import {
   useTickets,
   useTicket,
   useDepartments,
+  useMessages,
   useUsers,
   useNotifications,
 } from "@/hooks";
@@ -18,8 +19,10 @@ const createWrapper = () => {
       },
     },
   });
-  return ({ children }: { children: React.ReactNode }) =>
+  const TestQueryClientProvider = ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client: queryClient }, children);
+  TestQueryClientProvider.displayName = "TestQueryClientProvider";
+  return TestQueryClientProvider;
 };
 
 // Mock fetch
@@ -154,6 +157,48 @@ describe("Hooks", () => {
     });
   });
 
+  describe("useMessages", () => {
+    it("should not request admin messages when disabled", () => {
+      const { result } = renderHook(
+        () => useMessages({ enabled: false }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(result.current.fetchStatus).toBe("idle");
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("should fetch admin messages when enabled", async () => {
+      const mockMessages = [
+        {
+          id: 1,
+          title: "پیام آزمایشی",
+          content: "متن پیام",
+          shortCode: "test_message",
+          subDepartmentId: null,
+          subDepartment: null,
+          createdAt: "2024-01-15T10:30:00.000Z",
+          updatedAt: "2024-01-15T10:30:00.000Z",
+        },
+      ];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockMessages,
+      });
+
+      const { result } = renderHook(() => useMessages(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => {
+        expect(result.current.isSuccess).toBe(true);
+      });
+
+      expect(mockFetch).toHaveBeenCalledWith("/api/messages");
+      expect(result.current.data).toEqual(mockMessages);
+    });
+  });
+
   describe("useUsers", () => {
     it("should fetch users successfully", async () => {
       const mockUsers = [
@@ -191,7 +236,7 @@ describe("Hooks", () => {
             id: 1,
             message: "Test Notification",
             read: false,
-            ticketId: 1,
+            ticketId: "TK-DEMO-0001",
             recipientType: "ADMIN",
             userId: null,
             createdAt: "2024-01-15T10:30:00.000Z",
