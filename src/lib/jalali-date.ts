@@ -155,10 +155,14 @@ export function parseJalaliDateTime(value: string): Date | null {
 }
 
 export function parseJalaliDateEnd(value: string): Date | null {
-  const start = parseJalaliDateTime(value);
-  if (!start || jalaliMatch(value)?.[4] !== undefined) return null;
-  const nextDay = new DateObject({ date: start, calendar: gregorian })
-    .convert(persian, persianEn)
+  const normalized = normalizeJalaliDate(value);
+  if (!normalized) return null;
+  const nextDay = new DateObject({
+    date: normalized,
+    format: JALALI_DATE_FORMAT,
+    calendar: persian,
+    locale: persianEn,
+  })
     .add(1, "day")
     .format(JALALI_DATE_FORMAT);
   const nextStart = parseJalaliDateTime(nextDay);
