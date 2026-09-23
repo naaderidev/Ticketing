@@ -20,6 +20,7 @@ import {
 import { canonicalizeTicketDomainEventType } from "@/modules/tickets/contracts/ticket-domain-events";
 
 export const REPORTING_PROJECTION_CONSUMER = "REPORTING_TICKET_FACT_KPI_V1";
+const REPORTING_SOURCE_AGGREGATE_TYPE = "TICKET";
 
 type ProjectionLease = {
   token: string;
@@ -404,7 +405,10 @@ async function processBatchWithLease(
   throughOutboxEventId?: bigint | null
 ): Promise<ReportingProjectionResult> {
   const events = await prisma.outboxEvent.findMany({
-    where: { id: outboxIdRange(lease.lastOutboxEventId, throughOutboxEventId) },
+    where: {
+      aggregateType: REPORTING_SOURCE_AGGREGATE_TYPE,
+      id: outboxIdRange(lease.lastOutboxEventId, throughOutboxEventId),
+    },
     orderBy: { id: "asc" },
     take: batchSize,
     select: {
@@ -456,7 +460,10 @@ async function processBatchWithLease(
       };
     });
   const nextEvent = await prisma.outboxEvent.findFirst({
-    where: { id: outboxIdRange(lease.lastOutboxEventId, throughOutboxEventId) },
+    where: {
+      aggregateType: REPORTING_SOURCE_AGGREGATE_TYPE,
+      id: outboxIdRange(lease.lastOutboxEventId, throughOutboxEventId),
+    },
     orderBy: { id: "asc" },
     select: { occurredAt: true },
   });
@@ -480,9 +487,12 @@ async function sourceSnapshot(input: {
   maximumEvents: number;
 }): Promise<{ count: number; highWatermark: bigint | null }> {
   const snapshot = await prisma.outboxEvent.aggregate({
-    where: input.afterOutboxEventId
-      ? { id: { gt: input.afterOutboxEventId } }
-      : undefined,
+    where: {
+      aggregateType: REPORTING_SOURCE_AGGREGATE_TYPE,
+      ...(input.afterOutboxEventId
+        ? { id: { gt: input.afterOutboxEventId } }
+        : {}),
+    },
     _count: { _all: true },
     _max: { id: true },
   });

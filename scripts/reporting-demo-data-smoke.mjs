@@ -126,8 +126,14 @@ async function main() {
     prisma.recurringProblemSignal.count({
       where: { definitionVersion: KPI_DEFINITION_VERSION, status: "RECURRING" },
     }),
-    prisma.outboxEvent.aggregate({ _count: { _all: true }, _max: { id: true } }),
-    prisma.reportingProcessedEvent.count(),
+    prisma.outboxEvent.aggregate({
+      where: { aggregateType: "TICKET" },
+      _count: { _all: true },
+      _max: { id: true },
+    }),
+    prisma.reportingProcessedEvent.count({
+      where: { aggregateType: "TICKET" },
+    }),
     prisma.reportingProjectionCheckpoint.findUnique({
       where: { consumerName: REPORTING_PROJECTION_CONSUMER },
     }),

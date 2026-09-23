@@ -14,7 +14,7 @@ describe("SLA routing configuration", () => {
     });
   });
 
-  it("accepts the existing maintenance token only outside production", () => {
+  it("accepts the existing maintenance token outside production and in explicit demo mode", () => {
     expect(
       resolveSlaRoutingConfig({
         NODE_ENV: "development",
@@ -27,6 +27,13 @@ describe("SLA routing configuration", () => {
         ATTACHMENT_CLEANUP_TOKEN: token,
       })
     ).toThrow("SLA_MAINTENANCE_TOKEN");
+    expect(
+      resolveSlaRoutingConfig({
+        NODE_ENV: "production",
+        DEMO_MODE: "true",
+        ATTACHMENT_CLEANUP_TOKEN: token,
+      }).maintenanceToken
+    ).toBe(token);
   });
 
   it.each([

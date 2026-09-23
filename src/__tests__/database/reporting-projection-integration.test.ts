@@ -29,8 +29,10 @@ describeIntegration("reporting projection database integration", () => {
   it("rebuilds every outbox event once and is idle on the next run", async () => {
     const rebuilt = await rebuildReportingProjection();
     const [outboxCount, processedCount, facts, checkpoint] = await Promise.all([
-      prisma.outboxEvent.count(),
-      prisma.reportingProcessedEvent.count(),
+      prisma.outboxEvent.count({ where: { aggregateType: "TICKET" } }),
+      prisma.reportingProcessedEvent.count({
+        where: { aggregateType: "TICKET" },
+      }),
       prisma.ticketReportingFact.findMany({
         select: { dataQualityStatus: true, exclusionReason: true },
       }),
@@ -67,6 +69,10 @@ describeIntegration("reporting projection database integration", () => {
       hasMore: false,
       status: "HEALTHY",
     });
-    expect(await prisma.reportingProcessedEvent.count()).toBe(outboxCount);
+    expect(
+      await prisma.reportingProcessedEvent.count({
+        where: { aggregateType: "TICKET" },
+      })
+    ).toBe(outboxCount);
   });
 });

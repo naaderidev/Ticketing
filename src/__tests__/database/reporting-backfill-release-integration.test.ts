@@ -31,7 +31,9 @@ describeIntegration("reporting backfill and release reconciliation", () => {
   });
 
   it("rejects an oversized rebuild before touching derived reporting data", async () => {
-    const outboxCount = await prisma.outboxEvent.count();
+    const outboxCount = await prisma.outboxEvent.count({
+      where: { aggregateType: "TICKET" },
+    });
     if (outboxCount === 0) return;
 
     const before = await Promise.all([

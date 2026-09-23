@@ -60,5 +60,9 @@ npm run db:bootstrap-demo
 npm run dev:demo
 ```
 
+`dev:demo` و `start:demo` برنامه و Scheduler نگهداری را با هم اجرا می‌کنند و
+`MAINTENANCE_BASE_URL` را از پورت مؤثر برنامه می‌سازند. برای اجرای مستقل در زیرساخت‌های
+چندپردازه از `dev:app` یا `start:app` همراه `npm run scheduler:maintenance` استفاده کنید.
+
 هر دو اجرا همان feature flagها، Provider دمو، حساب‌ها و قرارداد API را دارند. تفاوت
 `NODE_ENV` صرفاً به بهینه‌سازی build مربوط است، نه قابلیت‌های قابل ارائه.

@@ -126,9 +126,11 @@ without both required reminders.
 The repository ships an executable scheduler instead of relying only on this deployment
 convention. Build the `scheduler` Docker target and run exactly one replica with
 `MAINTENANCE_BASE_URL`, `SLA_MAINTENANCE_TOKEN`, and
-`MAINTENANCE_INTERVAL_SECONDS=60`. For local development run
-`npm run scheduler:maintenance` next to `npm run dev`. Jobs run sequentially with overlap
-prevention and request timeouts; logs are structured and never include the bearer token.
+`MAINTENANCE_INTERVAL_SECONDS=60`. For local development, `npm run dev` starts both
+Next.js and the scheduler under the repository supervisor. When an external process manager
+owns them separately, run `npm run dev:app` next to `npm run scheduler:maintenance`. Jobs run
+sequentially with overlap prevention and request timeouts; logs are structured and never
+include the bearer token.
 
 The `IR_STANDARD_WORK_WEEK` calendar contains the official 1405 holiday set. Operations
 must load the authoritative 1406 calendar before 1406/01/01. Holiday updates are calendar

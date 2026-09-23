@@ -96,6 +96,7 @@ async function collectReportingReconciliation(
         },
       }),
       transaction.outboxEvent.aggregate({
+        where: { aggregateType: "TICKET" },
         _count: { _all: true },
         _max: { id: true },
       }),
@@ -156,6 +157,7 @@ async function collectReportingReconciliation(
             LEFT JOIN ReportingProcessedEvent processed
               ON processed.outboxEventId = source.id
             WHERE source.id <= ${sourceHighWatermark}
+              AND UPPER(source.aggregateType) = 'TICKET'
               AND processed.eventId IS NULL
           `
         ),

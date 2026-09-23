@@ -11,6 +11,12 @@ export type ReportingConfig = {
   rebuildSleepMilliseconds: number;
 };
 
+function isDemoMode(value: string | undefined): boolean {
+  return ["1", "true", "yes", "on"].includes(
+    value?.trim().toLowerCase() ?? ""
+  );
+}
+
 function boundedInteger(
   name: string,
   configuredValue: string | undefined,
@@ -29,12 +35,14 @@ function boundedInteger(
 export function resolveReportingConfig(
   environment: Readonly<Record<string, string | undefined>>
 ): ReportingConfig {
+  const allowExistingTokenFallback =
+    environment.NODE_ENV !== "production" || isDemoMode(environment.DEMO_MODE);
   const maintenanceToken =
     environment.REPORTING_MAINTENANCE_TOKEN?.trim() ||
-    (environment.NODE_ENV === "production"
-      ? undefined
-      : environment.SLA_MAINTENANCE_TOKEN?.trim() ||
-        environment.ATTACHMENT_CLEANUP_TOKEN?.trim());
+    (allowExistingTokenFallback
+      ? environment.SLA_MAINTENANCE_TOKEN?.trim() ||
+        environment.ATTACHMENT_CLEANUP_TOKEN?.trim()
+      : undefined);
   if (!maintenanceToken || maintenanceToken.length < 32) {
     throw new Error(
       "REPORTING_MAINTENANCE_TOKEN must contain at least 32 characters"

@@ -15,7 +15,7 @@ describe("reporting configuration", () => {
     });
   });
 
-  it("accepts the SLA token only outside production", () => {
+  it("accepts an existing token outside production and in explicit demo mode", () => {
     expect(
       resolveReportingConfig({
         NODE_ENV: "development",
@@ -28,6 +28,13 @@ describe("reporting configuration", () => {
         SLA_MAINTENANCE_TOKEN: token,
       })
     ).toThrow("REPORTING_MAINTENANCE_TOKEN");
+    expect(
+      resolveReportingConfig({
+        NODE_ENV: "production",
+        DEMO_MODE: "true",
+        SLA_MAINTENANCE_TOKEN: token,
+      }).maintenanceToken
+    ).toBe(token);
   });
 
   it("uses the existing local maintenance token as the final development fallback", () => {

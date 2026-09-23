@@ -145,6 +145,9 @@ npm run db:bootstrap-demo
 npm run dev
 ```
 
+این فرمان Next.js و Scheduler نگهداری را با هم اجرا می‌کند؛ بنابراین Projection گزارش‌ها،
+SLA، Lifecycle و پاک‌سازی فایل‌ها بدون ترمینال دوم به‌روز می‌مانند.
+
 یا روی پورت ارائه ۳۰۰۹:
 
 ```powershell
@@ -187,9 +190,12 @@ $env:PORT="3009"
 npm run start
 ```
 
-Scheduler باید در یک Process یا Windows Service جداگانه همیشه فعال باشد:
+فرمان `start` نیز برنامه و Scheduler را زیر یک Supervisor اجرا می‌کند و آدرس Scheduler را از
+پورت مؤثر Next.js می‌سازد. در زیرساخت‌هایی که Processها جداگانه مدیریت می‌شوند، به‌جای آن از
+این دو فرمان مستقل استفاده کنید:
 
 ```powershell
+npm run start:app
 npm run scheduler:maintenance
 ```
 
@@ -265,6 +271,9 @@ npm run verify:reporting-demo-data
 | `ATTACHMENT_LOCAL_STORAGE_PATH` | مسیر خصوصی فایل‌ها در حالت filesystem |
 | `SLA_MAINTENANCE_TOKEN` | احراز Scheduler مربوط به SLA و Lifecycle |
 | `REPORTING_MAINTENANCE_TOKEN` | احراز Projection و Jobهای گزارش‌گیری |
+| `MAINTENANCE_BASE_URL` | آدرس داخلی برنامه برای Scheduler؛ در اجرای Supervisor خودکار است |
+| `MAINTENANCE_INTERVAL_SECONDS` | فاصله اجرای Jobها؛ پیش‌فرض ۶۰ ثانیه |
+| `MAINTENANCE_RECURRING_PROBLEM_INTERVAL_SECONDS` | فاصله تشخیص مشکلات پرتکرار؛ پیش‌فرض ۳۶۰۰ ثانیه |
 | `REPORTING_ROLLOUT_STAGE` | مرحله فعال‌سازی Reporting؛ برای دمو `GENERAL` |
 
 تمام متغیرهای موردنیاز و Feature Flagها در `.env.example` مستند شده‌اند.
@@ -347,8 +356,12 @@ npm run db:bootstrap-demo
 
 ```powershell
 npm run verify:reporting-demo-data
-npm run scheduler:maintenance
+npm run dev
 ```
+
+اگر برنامه با `dev:app` یا `start:app` اجرا شده است، Scheduler را در Process جداگانه با
+`npm run scheduler:maintenance` فعال نگه دارید. تأخیر بیشتر از ۱۵ دقیقه باعث توقف عمدی
+انتشار KPIها می‌شود تا آمار قدیمی نمایش داده نشود.
 
 ### خطای نوشتن فایل
 

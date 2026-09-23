@@ -1866,6 +1866,7 @@ async function seedDemoRecurringProblemSignal(
 
 async function seedReportingProjectionCheckpoint(transaction) {
   const lastOutboxEvent = await transaction.outboxEvent.findFirst({
+    where: { aggregateType: "TICKET" },
     orderBy: { id: "desc" },
     select: { id: true, eventId: true, occurredAt: true },
   });
@@ -1969,8 +1970,10 @@ async function verifySeed(transaction, expectedUserCount, expectedFingerprint) {
     transaction.supportJourney.count(),
     transaction.transactionVolumeDaily.count({ where: { status: "VERIFIED" } }),
     transaction.recurringProblemSignal.count({ where: { status: "RECURRING" } }),
-    transaction.outboxEvent.count(),
-    transaction.reportingProcessedEvent.count(),
+    transaction.outboxEvent.count({ where: { aggregateType: "TICKET" } }),
+    transaction.reportingProcessedEvent.count({
+      where: { aggregateType: "TICKET" },
+    }),
     transaction.reportingProjectionCheckpoint.findUnique({
       where: { consumerName: REPORTING_PROJECTION_CONSUMER },
     }),
